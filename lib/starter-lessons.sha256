@@ -1,0 +1,32 @@
+# AI-DLC kit: checksums of every released version of every starter lesson (usage counters left out:
+# helpful, harmful, last_verified). install.sh updates a starter lesson in ~/.aidlc-kit/brain only when
+# your copy matches one of these lines, which means you never edited it. After changing a starter
+# lesson, add its new line here (tests/run-tests.sh prints it). Format: <sha256>  <file>  <version>
+a09a68d5e4edcaf5b46b367f34353649fb4189d3673f82763c45400173458a48  S-006-antigravity-rule-frontmatter.md  v2.1.0
+6836f6f6b3c667f25f0c472b5cd723e6b02e0f81eee0d7df7b8cb4e04d8484e2  S-001-riverpod3-legacy-import.md  v2.1.0
+c0c510f282cecc3c4681f00efae7092d217a768853a3d6ba515c5fd10dbe7d76  S-002-riverpod3-override-misc.md  v2.1.0
+6a29b7d3489a9f70a128e8dd6819f70c7947f268ddeef37e0909163f1107d459  S-003-watch-controller-notifier.md  v2.1.0
+d6a93eeb06d88cb0663ca90f41368ee4c9f4558284bef2bd9268311a23fe2ea5  S-004-screenutil-init-in-tests.md  v2.1.0
+4a45485585ea688f8460207bd1060b3fbeca5da095feae51bf155a1f4287ec30  S-005-snake-case-file-names.md  v2.1.0
+aa33b3c26b6d91bd3e680597ab63055cfbf85a2edcd0219443b598d76b2aaf83  S-006-antigravity-rule-frontmatter.md  v2.2.0
+2699999b03ce200188bbc4324473c08a99ef0187d74c96607640d16a8ea20c21  S-007-guard-rm-rf.md  v2.1.0
+a6d2093cd350ad494d2ded77c33840f6410ea7451054b1c6af25cd6a3b0b336c  S-008-bash-pipe-subshell.md  v2.1.0
+7cde7d990cdcd64c7b269c9e009e299d46139665cf9d384aa50d7a981b3188f1  S-009-dio-response-null-safe.md  v2.1.0
+47cfcdff97e3ee19925f8b879cd7c8540b7fcaa0e57156914038195b631847d0  S-010-central-headers-api-request.md  v2.1.0
+bfa29869be62e556afc198bf3702e002233f1d2acf194ccf2a2176d9e276381a  S-011-debug-only-redacted-logging.md  v2.1.0
+3e0134b0a1fcc4fb04d4a0d3e7a01efff90e119693ae2cbd304ea614b2197f37  S-012-one-dio-instance.md  v2.1.0
+7a29c81bfaad5d3f359833b24d93aa369438a94fa9aadfef6b65332e9982c353  S-013-await-prefs-writes.md  v2.1.0
+ed1fc8df527e9bdfa3320c6e4475a313d440bbf2ed909da3e550da640dc52d3b  S-014-dispose-controllers.md  v2.1.0
+e447feee4d0ff9f38590cf41497eade7be2c967768930cee1db8ec3669854972  S-015-mounted-after-await.md  v2.1.0
+811e5346681093a061b383dd51c7ad5c9e39364783b84dc6da10a88816db046b  S-016-no-state-writes-in-build.md  v2.1.0
+86ae514077efb23eeba9a9a64daec688b5b0806e5a7652f0f8c64e1d723be3a3  S-017-safe-go-router-extra.md  v2.1.0
+d3b5183dd7571466fc3389f4f0bcc32d8f0a77e225b26c92b03b56622eaa4d02  S-018-shared-code-in-global-features.md  v2.1.0
+2aa83fa4def796c21da829da1524c6c2e877532e7401e141953ec2a2ef9c7cbb  S-019-no-getx-with-riverpod.md  v2.1.0
+7da99fa61c958694f082f2edfc23cc0182398438efd2e0706c1cce9c94bf5274  S-020-no-keys-in-source.md  v2.1.0
+5c1aac9d86a971451d608fa03250cacfb2022a62ad114bf71e66aabda66a7b97  S-021-asyncvalue-value-throws-riverpod2.md  v2.1.0
+ec399a16f1117ad91ebd75d6332a51ad2aec8784e9ac8d8e041ed0df9eff8ab5  S-022-asyncvalue-extensions-import.md  v2.1.0
+5e99edb42f4c322f67300f05da916080ce617346c4c33f6ac6041c1be8962fe4  S-023-dio-transform-timeout-switch.md  v2.1.0
+8fd122356aa81d821d4c732a700dc1371f736a458489e1ce2d0352ba637937fd  S-024-test-binding-for-global-keys.md  v2.1.0
+8f55ded935979294c2a3822b2dbf3e24c96cdb2d9093c1f45dd83a623548cbd7  S-025-statenotifier-state-in-tests.md  v2.1.0
+f7a273e08523299b16792017e934b94af316211a4de0660549a8de8a7c8df2be  S-026-context-is-the-token-cost.md  v2.3.0
+b62f9a3b5734d05b910f43056f06c9c7333a647a6f483f49a863e6fe8f0c236b  S-027-quiet-test-output.md  v2.3.0
