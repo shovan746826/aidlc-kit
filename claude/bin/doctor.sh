@@ -45,7 +45,7 @@ echo "    settings: AIDLC_ENFORCE=$(aidlc_config AIDLC_ENFORCE project) · AIDLC
 
 if [ -f "$CLAUDE_DIR/skills/aidlc/SKILL.md" ]; then ok "Claude Code: /aidlc command"; else warn "Claude Code: /aidlc command not installed (run install.sh)"; fi
 if [ -f "$CLAUDE_DIR/agents/aidlc-reviewer.md" ]; then ok "Claude Code: aidlc-reviewer agent"; else warn "Claude Code: aidlc-reviewer agent not installed"; fi
-for h in plan-gate session-start auto-format learn-hint; do
+for h in plan-gate plan-check session-start auto-format learn-hint; do
   if grep -q "claude/hooks/$h.sh" "$CLAUDE_DIR/settings.json" 2>/dev/null; then
     if [ -f "$KIT_HOME/claude/hooks/$h.sh" ]; then ok "Claude Code hook registered: $h"; else err "hook $h is registered but $KIT_HOME/claude/hooks/$h.sh is missing"; fi
   else
@@ -56,6 +56,7 @@ if grep -q "AIDLC:BEGIN" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null; then ok "$CLAUDE_D
 if grep -q "AIDLC:BEGIN" "$GEMINI_DIR/GEMINI.md" 2>/dev/null; then ok "$GEMINI_DIR/GEMINI.md has the plan-first rule (Antigravity / Gemini)"; else warn "$GEMINI_DIR/GEMINI.md has no plan-first rule (Antigravity / Gemini)"; fi
 if [ -f "$KIT_HOME/brain/INDEX.md" ]; then ok "shared brain: $(grep -c '^- \[' "$KIT_HOME/brain/INDEX.md") lessons in $KIT_HOME/brain"; else warn "no shared brain in $KIT_HOME/brain (run install.sh)"; fi
 if [ -f "$KIT_HOME/tokens.sh" ]; then ok "token measurement: tokens.sh (reads Claude Code's own records)"; else warn "tokens.sh missing (run install.sh)"; fi
+if [ -f "$KIT_HOME/verify-plan.sh" ]; then ok "anti-hallucination plan check: verify-plan.sh"; else warn "verify-plan.sh missing (run install.sh)"; fi
 
 if [ "$machine_only" = 0 ]; then
   root="$(git -C "$project" rev-parse --show-toplevel 2>/dev/null)" || root="$(cd "$project" 2>/dev/null && pwd)"
@@ -68,17 +69,18 @@ if [ "$machine_only" = 0 ]; then
     for f in "$root"/.agents/rules/*.md; do [ -f "$f" ] && warn "other agent rule found: ${f#"$root"/}"; done
   else
     for f in .agents/rules/00-aidlc-core.md .agents/rules/10-quality-gates.md .agents/rules/20-architecture.md \
-             .agents/rules/30-learning.md .agents/rules/40-token-efficiency.md .agents/skills/project-architecture/SKILL.md; do
+             .agents/rules/30-learning.md .agents/rules/40-token-efficiency.md .agents/rules/50-anti-hallucination.md \
+             .agents/skills/project-architecture/SKILL.md; do
       if [ -f "$root/$f" ]; then ok "$f"; else err "missing $f"; fi
     done
     missing=""
     for s in project-analysis aidlc-new-project aidlc-feature aidlc-bugfix aidlc-construction aidlc-release \
-             aidlc-think aidlc-reflect aidlc-research aidlc-prompt; do
+             aidlc-think aidlc-reflect aidlc-research aidlc-prompt aidlc-anti-hallucination; do
       [ -f "$root/.agents/skills/$s/SKILL.md" ] || missing="$missing $s"
     done
-    if [ -z "$missing" ]; then ok "workflow skills (10)"; else err "missing skills:$missing"; fi
+    if [ -z "$missing" ]; then ok "workflow skills (11)"; else err "missing skills:$missing"; fi
     n="$(ls "$root/.agents/templates/"*.md 2>/dev/null | wc -l | tr -d ' ')"
-    if [ "$n" -ge 23 ]; then ok "templates ($n)"; else err "templates: $n of 23"; fi
+    if [ "$n" -ge 24 ]; then ok "templates ($n)"; else err "templates: $n of 24"; fi
     if [ -f "$root/aidlc-docs/brain/INDEX.md" ]; then
       if bash "$KIT_HOME/brain.sh" lint "$root" >/dev/null 2>&1; then ok "brain: $(grep -c '^- \[' "$root/aidlc-docs/brain/INDEX.md") project lessons, lint passed"
       else warn "brain lint found problems: run bash $KIT_HOME/brain.sh lint \"$root\""; fi
@@ -128,7 +130,7 @@ if [ "$machine_only" = 0 ]; then
       [ -f "$f" ] || continue
       head -n 6 "$f" | grep -q '^trigger:' || warn "${f#"$root"/} has no 'trigger:' frontmatter, so Antigravity ignores it"
       case "$(basename "$f")" in
-        00-aidlc-core.md|10-quality-gates.md|20-architecture.md|30-learning.md|40-token-efficiency.md) ;;
+        00-aidlc-core.md|10-quality-gates.md|20-architecture.md|30-learning.md|40-token-efficiency.md|50-anti-hallucination.md) ;;
         *) warn "extra rule file ${f#"$root"/}: check that it does not conflict with AI-DLC (init-project.sh --migrate archives old workflow rules)" ;;
       esac
     done
@@ -158,6 +160,20 @@ if [ "$machine_only" = 0 ]; then
       if [ -n "$age" ] && [ "$age" -gt 30 ]; then warn "project profile is $age days old: re-run the project analysis"; else ok "project profile (analyzed ${d:-?})"; fi
     else
       warn "no project profile yet: ask the agent to analyze the project"
+    fi
+    # Process audit: every completed work item kept the record of its stages (test, review, reflection).
+    n_done=0; missing=""
+    for d in "$root"/aidlc-docs/work/*/; do
+      pf=""
+      for c in implementation_plan.md bugfix_plan.md; do [ -f "$d$c" ] && pf="$d$c"; done
+      [ -n "$pf" ] && [ "$(plan_status "$pf")" = "COMPLETED" ] || continue
+      n_done=$((n_done + 1))
+      for r in test-report.md review-report.md reflection.md; do [ -f "$d$r" ] || missing="$missing $(basename "$d")/$r"; done
+    done
+    if [ -n "$missing" ]; then
+      warn "completed work items without the record of a stage:$missing"
+    elif [ "$n_done" -gt 0 ]; then
+      ok "process audit: $n_done completed work item(s), each with its test, review and reflection reports"
     fi
     if [ -f "$root/pubspec.yaml" ]; then
       if [ -x "$root/.fvm/flutter_sdk/bin/flutter" ] || command -v flutter >/dev/null 2>&1; then ok "Flutter SDK available"; else warn "Flutter SDK not on PATH: verification commands cannot run"; fi

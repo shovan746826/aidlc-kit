@@ -14,6 +14,7 @@
 |---|---|---|---|
 
 ## 3. Verification runs (after the changes)
+Include the end-to-end check with its evidence (test output, or screenshot paths).
 | # | Date-time | Command | Result |
 |---|---|---|---|
 

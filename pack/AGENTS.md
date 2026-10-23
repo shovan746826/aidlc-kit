@@ -10,6 +10,7 @@ Before doing anything else, read and follow these rule files, in this order:
 3. `.agents/rules/20-architecture.md`: this project's architecture rules
 4. `.agents/rules/30-learning.md`: the brain (recall lessons, capture, reflect)
 5. `.agents/rules/40-token-efficiency.md`: the task brief and lean context (tokens)
+6. `.agents/rules/50-anti-hallucination.md`: evidence for every claim, verify before use, check every plan
 
 Then:
 - **Current work and next action:** `aidlc-docs/aidlc-state.md`
@@ -17,7 +18,7 @@ Then:
 - **Architecture standard** (read before any planning or code): `.agents/skills/project-architecture/SKILL.md`
 - **Workflow skills:** `.agents/skills/`: `project-analysis`, `aidlc-new-project`, `aidlc-feature`,
   `aidlc-bugfix`, `aidlc-construction`, `aidlc-release`,
-  `aidlc-think`, `aidlc-reflect`, `aidlc-research`, `aidlc-prompt`
+  `aidlc-think`, `aidlc-reflect`, `aidlc-research`, `aidlc-prompt`, `aidlc-anti-hallucination`
 - **Document templates:** `.agents/templates/`
 - **All analyses, plans and reports:** `aidlc-docs/`
 <!-- AIDLC:END -->

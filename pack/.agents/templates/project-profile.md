@@ -2,6 +2,7 @@
 
 > analyzed: YYYY-MM-DD · by: <agent> · kind: brownfield | greenfield · standard: flutter | android | ios | generic
 > Facts only, with paths. Write "unknown" instead of guessing. Never write secret values.
+> Keep it under about 10 KB: it is read in every session (one row per feature; the details stay in the code).
 
 ## 1. Summary
 - <3–5 bullets: what the app is, stack, size, health, biggest risks>
@@ -36,7 +37,7 @@
 ```
 
 ## 5. Feature registry
-<!-- Updated after every completed work item (10-quality-gates §8). -->
+<!-- Updated after every completed work item (aidlc-construction C6). -->
 | Feature | Folder | Screens | Routes | API endpoints | State holders | Notes |
 |---|---|---|---|---|---|---|
 
@@ -81,6 +82,22 @@
 ## 14. Glossary
 | Term | Meaning |
 |---|---|
+
+## 15. Architecture choice
+<!-- Filled by project-analysis A5. Empty = not chosen yet. -->
+- Decision: yours | AI-DLC (<stack>) | mix · Date: YYYY-MM-DD · ADR: `aidlc-docs/project/decisions/ADR-<NNN>-architecture-choice.md`
+
+| Area | This project | AI-DLC standard | Choice | Reason |
+|---|---|---|---|---|
+| Architecture and folders | | | yours / AI-DLC | |
+| API calling | | | | |
+| State management | | | | |
+| Routing | | | | |
+| Storage and session | | | | |
+| Error handling and feedback | | | | |
+| Dependency injection | | | | |
+| Design system | | | | |
+| Testing | | | | |
 
 ---
 **Ready to approve?** ☐ every section filled or "unknown" ☐ deviations have paths ☐ verification commands

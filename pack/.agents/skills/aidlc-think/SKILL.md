@@ -12,7 +12,7 @@ description: The AI-DLC thinking protocol used before any plan is written. Under
 ## Choose the depth (say it in one line, with the reason)
 | Depth | Use for |
 |---|---|
-| **Light** | bug fix, small change (about 5 files or fewer), no new API, package or data change |
+| **Light** | bug fix, small change (about 5 files or fewer), no new API, package or data change (a change gets the template's light plan) |
 | **Full** | feature, new project, architecture, new package, security or privacy, data migration, anything risky |
 When unsure, use full.
 
@@ -79,8 +79,12 @@ Light depth: two options compared in 2–3 lines.
 - Check the plan against its template's "Ready to approve?" list, `10-quality-gates.md` §3, the
   architecture rules and the brain pitfalls.
 - Red team: *"What would a strict senior reviewer reject here?"* Fix it now.
-- Simplify: remove anything the requirements don't need.
+- Simplify: remove anything the requirements don't need. Every new package, layer or abstraction beyond the
+  standard gets a one-line reason in the plan.
 - Note what self-review changed. That is a good sign, not a failure.
+- Anti-hallucination: fill the plan's Facts and assumptions table and run
+  `bash ~/.aidlc-kit/verify-plan.sh <plan>`; fix every ✗, and ask the user what the code and docs can't
+  settle. Full depth also follows `.agents/skills/aidlc-anti-hallucination/SKILL.md` (H1–H5).
 
 ## Thinking summary (put this section into the plan)
 ```
@@ -91,6 +95,7 @@ Light depth: two options compared in 2–3 lines.
 - Options: A … (score) · B … (score) → chosen: A, because …
 - Pre-mortem: 1) … → mitigation … 2) … → mitigation …
 - Self-review changes: …
+- Verification: 12 facts verified · 1 assumption (listed at the gate) · 0 unknown · verify-plan.sh ✓
 ```
 
 ## Rules

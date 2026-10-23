@@ -1,5 +1,127 @@
 # Changelog
 
+## 3.0.0 (2026-10-23)
+
+**Complex projects: every stage is proven, and planning matches the best public methods.** Checked against
+AWS AI-DLC workflows (a gate and an audit trail at every stage; per-unit functional and NFR design; contract
+design between units), GitHub Spec Kit (read-only cross-artifact analysis, no open clarification markers,
+test-first), Kiro specs (requirements → design → tasks; bug specs with unchanged behaviour) and Anthropic's
+Claude Code best practices (a check Claude can run, evidence instead of claims, an end-to-end verification
+step, a fresh session to implement, a reviewer that flags only real gaps).
+- **Stages are proven (S1):** `verify-plan.sh` (full check of a draft plan) fails when an earlier stage was
+  skipped or not approved: a full-depth feature needs `requirements.md` (F2) and `integration-plan.md` (F3)
+  approved (their Status line, or an APPROVED row in the audit log); a light plan needs its stories with
+  acceptance criteria in §1; a project scaffold needs the project requirements, architecture and delivery plan
+  approved; a bug fix needs `path:line` evidence for its root cause. Core rule §5: after an approval the
+  document's Status becomes APPROVED and the audit row names the stage.
+- **Traceability (S2):** every user story needs a test in §12 and a file or task; every NFR a named check
+  (§10, §12 or §13); business rules and integrations not named in the plan are warnings.
+- **No open blocking question at a gate (S3):** real `[OPEN-BLOCKING]` items in the plan, `questions.md`,
+  requirements or integration plan fail the check (comments, placeholders and checklist lines don't count).
+- **Construction evidence at `--done` (S1):** every numbered task done (or skipped with a reason); the test
+  report has a baseline row and a verification run; the review report has a PASS verdict and no open Blocking
+  finding; a missing `git-baseline.txt` is a warning.
+- **Doctor process audit:** finished work items without their test, review or reflection report are listed.
+- **Design for complex features (S4):** `integration-plan.md` §11 at full depth: data model with migrations,
+  states and flows, how each NFR is met and verified, compatibility and rollout.
+- **Test-first for logic (S5, decision D1):** models, repositories, controllers, notifiers and utilities get
+  their failing test before the code; screens and wiring are tested right after; C3 covers the remaining
+  widget, integration and end-to-end tests.
+- **End-to-end check with evidence (S6):** every plan names it (§13); C5 records its output.
+- **Several units (S7):** shared contracts in the delivery plan; a milestone check (its user journeys end to
+  end) before the next milestone.
+- **Spikes (S8):** a time-boxed, approved experiment in `spikes/<slug>/`, outside the app, for questions no
+  document can settle; the answer becomes a research note.
+- **Bug fixes (S9):** the plan states what must not change, and tests keep it covered.
+- **Reviewer and planning (S10):** the reviewer reports only gaps in correctness, requirements, the standard,
+  security or performance; every new package, layer or abstraction needs a one-line reason; large plans are
+  built in a new session.
+- **Release:** rollout gates for staged releases; a deploy path for web and backend projects.
+- Decision D2: real gaps block (✗); business rules, integrations and the git baseline are warnings.
+- Tests: **432 checks** (was 394).
+
+## 2.8.0 (2026-10-23)
+
+**Full review: gaps fixed, faster plan checks, fewer tokens.** Measured first: the hooks take 12–39 ms per call
+(no change needed); agents read the 45,149-byte Flutter standard before every plan; the plan check took 15.2 s
+for 10 classes on a 3,000-file app.
+- **Faster plan check (G1):** one search for every class in the plan (`git grep`, or `grep -r` outside git)
+  instead of one per class: 15.2 s → 0.38 s on a 3,000-file git repository (2.23 s without git).
+- **Your own work is safe (G2):** construction C1 runs `verify-plan.sh <plan> --baseline`, which records the
+  files that already had uncommitted changes, with content hashes. `--done` reports them as warnings while they
+  are untouched and never asks to revert them; a file that changed again is still a problem.
+- **Monorepos (plan change PC-1):** `--done` and `--baseline` read only the project folder, with paths relative
+  to it, when the app is a folder inside a bigger repository.
+- **The kit's own files are protected (G3):** the plan gate and `--done` treat the rules and skills marked
+  `aidlc-kit:managed` and the shared-brain copy like code: an approved plan must list them. The architecture
+  skill, `20-architecture.md` and your own rule files stay free, so the architecture choice (A5) works as before.
+- **Lean Flutter standard (D1):** `SKILL.md` keeps sections 1–6 and 17–19 in full and, for every other section,
+  one line naming its topic file and when to read it. The full text moved word for word to
+  `reference/patterns.md`, `routing-api.md`, `app-shell.md`, `build-test-security.md` and `adopting-v3.md`:
+  45,149 → 23,056 bytes read before every plan; the compile check still passes 39 tests on Riverpod 2 and 3.
+  New projects get it; existing ones with `--update-architecture`.
+- **Light plans (D2):** light work (about 5 files or fewer, no new API, package or data change) gets one
+  document (the plan holds the stories and acceptance criteria), one approval and one diagram. Full features
+  keep everything.
+- **Token rule:** read several files in one step; open the standard's topic files only when needed; fill
+  templates without their instruction comments; a section with nothing to say is one line.
+- **Size budgets:** the project profile ≤ about 10 KB (it is read in every session); a standard written from
+  your code ≤ about 20 KB, with long topics in `reference/`.
+- Fixed a stale reference in the profile template ("10-quality-gates §8" → aidlc-construction C6); a new test
+  checks every "rule §N" and skill-step reference.
+- Tests: **394 checks** (was 365).
+
+## 2.7.1 (2026-10-23)
+
+- `verify-plan.sh`: a plan without the `aidlc:files` markers (or with only one of them) is now a problem (✗),
+  not a warning. The plan gate reads only the files between the markers, so before this fix such a plan skipped
+  every file check and the Claude Code hook stayed silent. A plan in progress whose file table is still empty
+  stays a warning.
+- Tests: **365 checks** (was 359).
+
+## 2.7.0 (2026-10-23)
+
+**Anti-hallucination protocol.** Built on Anthropic's guidance (allow "I don't know", ground in direct quotes,
+cite every claim), Chain-of-Verification (Meta AI, ACL Findings 2024) and the package-hallucination study by
+Spracklen et al. 2024 (19.7% of packages suggested by 16 code models did not exist; "slopsquatting").
+- **Always-on rule `50-anti-hallucination.md`** (decision D1): evidence for every claim, "unknown" or a
+  question instead of a guess, verify code, packages and files before use, re-ground in long tasks, report
+  only real output, learn from every hallucination caught.
+- **Skill `aidlc-anti-hallucination`** for large or complex work: ground first, facts table, verification
+  questions answered again from the sources, mechanical check, consistency, honest report.
+- **`verify-plan.sh`**: catches invented files to modify (with "did you mean"), files to create that already
+  exist, invented classes and members, missing lessons and research notes, "verified" facts without evidence
+  and unknown facts; `--done` checks the build against the plan. Errors block the gate (decision D2); what the
+  code and docs can't settle becomes a question to the user.
+- **Claude Code hook `plan-check.sh`** (decision D3, the 5th hook): runs the check whenever the agent writes a
+  plan file and tells it what does not exist.
+- Plan templates: a **Facts and assumptions** table and a "Verification" line in the Thinking summary; the
+  feature, bug-fix, construction and thinking skills, the reviewer (check 10) and `/aidlc verify` use them.
+- Starter lesson **S-028**: confirm a new package's exact name on the official registry.
+- Plan change PC-1: the shared-brain index budget is 8 KB (was 6 KB; the 28 starter lessons used 5.8 KB).
+- Plan change PC-2: updating the kit changes the old "Keep under 6 KB." line in your shared index's header to
+  8 KB (old index backed up; a header line you edited is kept).
+- Tests: **359 checks** (was 332).
+
+## 2.6.0 (2026-10-23)
+
+**Your architecture or AI-DLC's: the analysis now asks.**
+- `project-analysis` stage **A5 "Architecture choice"**, after the analysis gate, the first time a project is
+  analyzed and later only on request (`/aidlc architecture`, "keep my architecture", "use the AI-DLC
+  architecture") or when the code no longer follows the chosen standard.
+- It compares, with `path:line` evidence: architecture and folders, API calling, state management, routing,
+  storage and session, error handling, dependency injection, design system and testing, against the AI-DLC
+  standard for the stack, and asks: **A) your architecture** · **B) the AI-DLC standard** · **C) a mix** per
+  area, each with a ★ and its reason (state management, folders and DI: keep yours unless they cause real
+  problems; areas with security or crash risks: take AI-DLC's).
+- After the approval it changes only `.agents/`: A writes or completes your standard and makes
+  `20-architecture.md` agree with it (both marked `generated`, so updates keep them, and the kit's reference
+  code is archived); B runs `--update-architecture`; C writes one standard whose sections name their source.
+  Always an ADR and profile section 15.
+- New template `architecture-standard.md` (24 templates), the same 22 sections as the kit standards, each
+  with its source. Plans take their phases from the chosen standard's new-feature checklist.
+- Tests: **332 checks** (was 320), including init keeping an A5 standard with no mismatch warning.
+
 ## 2.5.0 (2026-10-23)
 
 - **README "Common tasks":** check versions, check health (doctor), update the kit, update a project (with

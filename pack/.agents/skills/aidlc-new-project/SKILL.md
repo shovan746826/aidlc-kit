@@ -89,7 +89,9 @@ approve?") → gate → approval → audit log + state → next stage.**
 
 ## NP7. Delivery plan → `06-delivery-plan.md`
 1. Split the requirements into **units of work**: vertical slices (UI → logic → data) that a user can see
-   working. For each unit: stories, dependencies, size (S/M/L), milestone.
+   working. For each unit: stories, dependencies, size (S/M/L), milestone. Models, APIs or events that more
+   than one unit uses are **shared contracts**: define each once (owner unit, file, shape) before those units
+   start.
 2. Order: `001-setup-project-scaffold` first, then by dependency and priority. Milestones with exit
    criteria. Traceability: goal → FR → story → unit → work item.
 3. Add every unit to the "Work items" table in `aidlc-state.md` (`002-feature-…`, `003-feature-…`), all ⏳.
@@ -111,7 +113,9 @@ approve?") → gate → approval → audit log + state → next stage.**
 ## After the scaffold
 Continue with the next unit from the delivery plan using `.agents/skills/aidlc-feature/SKILL.md`. Its stories
 already exist in `03-requirements.md`, so in F1/F2 confirm and narrow them for this unit instead of asking
-everything again.
+everything again. **Milestone check:** when the last unit of a milestone is done, run the full verification and
+the milestone's user journeys end to end, and mark its exit criteria ✅ or ❌ in `06-delivery-plan.md` before
+the next milestone starts.
 
 ## Rules
 - At most 10 questions per round. Skip questions that are already answered.

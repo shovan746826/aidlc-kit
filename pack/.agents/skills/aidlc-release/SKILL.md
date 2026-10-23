@@ -27,11 +27,14 @@ State: `mode: release`, `type: release`, `work_item: release-<version>`, `stage:
    - Flutter: `version: x.y.z+build` in `pubspec.yaml`
    - Android: `versionName` / `versionCode` in `app/build.gradle(.kts)`
    - iOS: `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`
+   - Web or backend: the version tag; the deploy pipeline per environment (staging → production) takes the
+     place of the stores; database migrations come with their rollback
 2. Changelog from the completed work items. Pre-release checklist. Files tables (version files,
    `CHANGELOG.md`).
 3. Build commands: Flutter `flutter build appbundle --release` and `flutter build ipa --release`; add
    `--flavor <name>` and `--obfuscate --split-debug-info=<dir>` if the project uses them.
-4. Rollout and rollback; monitoring.
+4. Rollout and rollback, with gates: widen a staged rollout only while crash-free users stay at or above the
+   target and no new top crash appears; otherwise halt it and open a bug-fix work item. Monitoring.
 5. Gate. 🛑 **HARD STOP.** On approval: `code_gate: open`, `active_plan:` the release plan →
    `.agents/skills/aidlc-construction/SKILL.md`.
 

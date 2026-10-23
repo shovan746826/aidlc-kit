@@ -6,7 +6,7 @@
 - <number of units, milestones, first release target>
 
 ## 2. Milestones
-| Milestone | Scope (units) | Target date | Exit criteria |
+| Milestone | Scope (units) | Target date | Exit criteria (always: its user journeys pass end to end) |
 |---|---|---|---|
 | M1 MVP | | | |
 
@@ -17,6 +17,11 @@ A unit is a vertical slice (UI → logic → data) that a user can see working. 
 |---|---|---|---|---|---|---|
 | U-0 | Project scaffold (core, config, routing, network, theme) | — | — | M | M1 | 001-setup-project-scaffold |
 | U-1 | | | U-0 | | | 002-feature-… |
+
+### 3.1 Shared contracts
+Models, APIs and events that more than one unit uses: defined once, before those units start.
+| Contract (model · API · event) | Used by units | Owner unit | Defined in (path) | Shape (fields or endpoint) |
+|---|---|---|---|---|
 
 ## 4. Build order
 ```mermaid
@@ -39,4 +44,5 @@ completion report, feature registry updated.
 
 ---
 **Ready to approve?** ☐ every Must story is in a unit ☐ dependencies have no cycles ☐ milestones have exit
-criteria ☐ the scaffold is first ☐ traceability is complete up to the work item
+criteria ☐ the scaffold is first ☐ traceability is complete up to the work item ☐ every model, API or event
+used by more than one unit is a shared contract

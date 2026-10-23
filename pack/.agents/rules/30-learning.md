@@ -51,6 +51,6 @@ Only `status: active` lessons appear in `INDEX.md`.
 3. `.agents/brain/shared/` is a read-only copy. Shared lessons are proposed in the project with
    `scope: shared` and copied to the shared brain after approval. They reach every project, so they name no
    project, client, host or private data.
-4. Size budget: `aidlc-docs/brain/INDEX.md` ≤ 8 KB, shared index ≤ 6 KB. Over budget → maintenance first
+4. Size budget: `aidlc-docs/brain/INDEX.md` ≤ 8 KB, shared index ≤ 8 KB. Over budget → maintenance first
    (merge, retire), then add.
 5. Change lessons one at a time. Never rewrite the whole brain in one step: details get lost.

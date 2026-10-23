@@ -1,7 +1,7 @@
 ---
 name: aidlc
 description: AI-DLC entry point for Claude Code. Shows status and resumes work, installs or updates the AI-DLC pack in a project, and routes new-project, feature, bugfix, release and analysis requests to the project's .agents/skills. Use when the user types /aidlc, or asks to start, continue or check AI-DLC work.
-argument-hint: "[status | init [flutter|android|ios|generic] | analyze | new-project <idea> | feature <what> | bugfix <what> | release [version] | brain | learn | research <topic> | prompt <text> | tokens [work item] | doctor]"
+argument-hint: "[status | init [flutter|android|ios|generic] | analyze | new-project <idea> | feature <what> | bugfix <what> | release [version] | brain | learn | research <topic> | prompt <text> | tokens [work item] | architecture | verify [plan] | doctor]"
 ---
 
 # /aidlc: AI-DLC for Claude Code
@@ -33,7 +33,8 @@ Find the project root (`git rev-parse --show-toplevel`, else the current folder)
 |---|---|
 | *(none)* or `status` | Read `aidlc-docs/aidlc-state.md` and print the status report (`00-aidlc-core.md` §9). If a work item is in progress, ask "Continue with <stage>?" and continue on yes. |
 | `init [standard]` | Section 1. If the pack exists, the same command updates the kit-owned files (project-owned files are kept). To switch the project to the kit's architecture standard, add `--update-architecture` after the user agrees (their own standard is archived, a kit-made one backed up). |
-| `analyze` | Follow `.agents/skills/project-analysis/SKILL.md`. |
+| `analyze` | Follow `.agents/skills/project-analysis/SKILL.md` (it ends with the architecture choice, A5). |
+| `architecture` | Follow `.agents/skills/project-analysis/SKILL.md` A5: keep your architecture, take the AI-DLC standard, or mix. Run the analysis first if `aidlc-docs/project-profile.md` is missing. |
 | `new-project <idea>` | Follow `.agents/skills/aidlc-new-project/SKILL.md` with the idea. |
 | `feature <what>` | Follow `.agents/skills/aidlc-feature/SKILL.md`. |
 | `bugfix <what>` | Follow `.agents/skills/aidlc-bugfix/SKILL.md`. |
@@ -45,6 +46,7 @@ Find the project root (`git rev-parse --show-toplevel`, else the current folder)
 | `research <topic>` | Follow `.agents/skills/aidlc-research/SKILL.md`. |
 | `prompt <text>` | Rewrite the text with `.agents/skills/aidlc-prompt/SKILL.md` P3 (no pack in this project: use `~/.aidlc-kit/pack/.agents/skills/aidlc-prompt/SKILL.md`). |
 | `tokens [work item]` | Run `bash ~/.aidlc-kit/tokens.sh "<project root>"` (latest session) or with `--work-item <id>`. Explain in 2–3 lines where the tokens went and what would save the most. |
+| `verify [plan]` | Run `bash ~/.aidlc-kit/verify-plan.sh <plan>` (default: the active plan, else the newest plan in `aidlc-docs/work/`), explain every ✗, and for a large plan follow `.agents/skills/aidlc-anti-hallucination/SKILL.md` H3. |
 | `doctor` | Run `bash ~/.aidlc-kit/claude/bin/doctor.sh "<project root>"` and explain every ✗ and ! line. |
 | anything else | Treat it as a request and route it with the table in `00-aidlc-core.md` §2. |
 

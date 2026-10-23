@@ -15,9 +15,10 @@ description: Plan a new feature, module or screen, or a change, enhancement or r
 | F3 Integration plan | `integration-plan.md` | approve |
 | F4 Implementation plan | `implementation_plan.md` | 🛑 approve → the code gate opens |
 
-**Light mode:** for changes, enhancements and small features (about 5 files or fewer, no new API), write
-F2 and F3 as one `requirements.md` with an extra "Integration" section and approve it in one gate. Say that
-you use light mode and why. Questions and the F4 approval are never skipped.
+**Light mode:** for changes, enhancements and small features (about 5 files or fewer, no new API, package or
+data change), skip F2 and F3: the implementation plan is a **light plan** (template `implementation_plan.md`)
+with the user stories and acceptance criteria in §1, the integration points in §2 and one diagram, and F4 is the
+only gate. Say that you use light mode and why. Questions (F1) and the F4 approval are never skipped.
 
 ## F1. Context and questions
 1. Session-start rules done: state read, architecture skill read, profile fresh (else run
@@ -46,26 +47,35 @@ into the existing app (routes and the screen that opens it, providers or global 
 shared widgets, core config entries such as URLs, colors and constants, platform files and permissions,
 analytics, localization, local data changes). For every external call, write the contract (method, URL,
 headers, request and response JSON examples, error codes). Unknown backend contract → ask; or plan
-mock-first with typed models and mark the contract `[OPEN]`. Gate.
+mock-first with typed models and mark the contract `[OPEN]`. **Full depth** also fills §11 **Design**: the
+data model (with migrations), states and flows, how each NFR is met and verified, compatibility and rollout.
+Gate.
 
 ## F4. Implementation plan → `implementation_plan.md`
 1. Think first with `.agents/skills/aidlc-think/SKILL.md` (full depth; light depth in light mode), and use
    `.agents/skills/aidlc-research/SKILL.md` for a new package or a version-sensitive API.
-   Then fill every section of template `implementation_plan.md`, including the **Thinking summary**.
+   Then fill template `implementation_plan.md` (a light plan in light mode), including the **Thinking summary**.
    Follow the architecture skill's "new feature checklist" for which files to create and in which order.
 2. Files tables: every file with its full path, including tests and every config file you will edit
    (router, URL config, `pubspec.yaml`, platform manifests). The plan gate allows only these files.
-3. Task plan phases (Data → Business logic → Presentation → Integration → Tests and verification), all ⏳.
+3. Task plan phases in the order of the architecture skill's new-feature checklist (default: Data → Business
+   logic → Presentation → Integration → Tests and verification), all ⏳.
    Under every task write **How** (file, change, key code shape), **Why** (requirement, standard section or
    lesson) and **Check** (how you will know it works).
 3b. Draw the three diagrams of section 6 from the real tasks and files: plan flow, file map, runtime flow
-   (with the error path). They show the user how the plan works before they approve it.
-4. Self-check ("Ready to approve?"), then the gate. 🛑 **HARD STOP: wait for explicit approval.**
+   (with the error path); a light plan draws one. They show the user how the plan works before they approve it.
+4. Self-check ("Ready to approve?") and `bash ~/.aidlc-kit/verify-plan.sh <plan>` (it also proves that F2 and F3 are approved, that every story
+   and NFR has a file or task and a test, and that no blocking question is open): fix every ✗; what the code
+   and docs can't settle becomes a question to the user. Then the gate. 🛑 **HARD STOP: wait for explicit
+   approval.**
 5. On approval: set the plan status `APPROVED <date-time>`; audit log; state `mode: construction`,
    `stage: C1 Baseline`, `code_gate: open`, `active_plan: aidlc-docs/work/<id>/implementation_plan.md`.
-   Then follow `.agents/skills/aidlc-construction/SKILL.md`.
+   Then follow `.agents/skills/aidlc-construction/SKILL.md`. A large plan (full depth or more than about 10
+   files): suggest building it in a new session; the plan and the state file carry everything, and a clean
+   context builds better.
 
 ## Rules
 - One work item = one coherent change. Split big requests into several work items and ask for the order.
 - A bug found while planning becomes its own `bugfix` work item, unless the user wants it included.
-- Never start coding "to explore". Read code, ask, plan.
+- Never start coding "to explore". Read code, ask, plan. A real unknown that the docs can't settle → an
+  approved spike (`aidlc-research`).

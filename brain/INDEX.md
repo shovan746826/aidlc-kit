@@ -1,7 +1,7 @@
 # Shared Brain: Index
 
 Lessons that apply to every project. Read before every plan (`.agents/rules/30-learning.md`).
-This is a read-only copy in each project; the source is `~/.aidlc-kit/brain/`. Keep under 6 KB.
+This is a read-only copy in each project; the source is `~/.aidlc-kit/brain/`. Keep under 8 KB.
 Line format: `- [ID](lessons/<file>.md) · type · stack · tags · the lesson in one line · ✓helpful ✗harmful`
 
 ## Rules and pitfalls
@@ -26,6 +26,7 @@ Line format: `- [ID](lessons/<file>.md) · type · stack · tags · the lesson i
 - [S-023](lessons/S-023-dio-transform-timeout-switch.md) · pitfall · flutter · networking, dio, versions · dio 5.10 added DioExceptionType.transformTimeout: exhaustive switches break across dio versions · ✓0 ✗0
 - [S-024](lessons/S-024-test-binding-for-global-keys.md) · pitfall · flutter · testing · Plain test() files that touch GlobalKeys (navigator, messenger) need TestWidgetsFlutterBinding.ensureInitialized() · ✓0 ✗0
 - [S-025](lessons/S-025-statenotifier-state-in-tests.md) · rule · flutter · testing, riverpod · In tests read StateNotifier.state; debugState is deprecated · ✓0 ✗0
+- [S-028](lessons/S-028-verify-package-names.md) · pitfall · any · packages, security, hallucination · Confirm a new package's exact name on the official registry before adding it · ✓0 ✗0
 
 ## Patterns and decisions
 - [S-003](lessons/S-003-watch-controller-notifier.md) · pattern · flutter · riverpod, state · Inside another provider use ref.watch(controllerProvider.notifier), not the provider itself · ✓0 ✗0

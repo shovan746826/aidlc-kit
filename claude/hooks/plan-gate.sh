@@ -23,8 +23,10 @@ esac
 file="$(normalize_path "$file")"
 dir="$(dirname "$file")"
 
+KIT_NOTE=""
 block() {
   printf 'AI-DLC plan gate: blocked a change to %s\n%s\n' "$1" "$2" >&2
+  [ -z "$KIT_NOTE" ] || printf '%s\n' "$KIT_NOTE" >&2
   exit 2
 }
 
@@ -40,7 +42,10 @@ Set it up first (/aidlc init, or: bash ~/.aidlc-kit/init-project.sh \"$repo\"), 
 fi
 
 rel="${file#"$root"/}"
-is_governance "$rel" && exit 0
+if is_governance "$rel"; then
+  is_kit_owned "$rel" "$file" || exit 0   # planning documents and project-owned rules: no plan needed
+  KIT_NOTE="Note: $rel belongs to the AI-DLC kit and is replaced on every kit update. Project rules go into a new file in .agents/rules/; the shared brain changes only through brain.sh."
+fi
 
 state="$root/aidlc-docs/aidlc-state.md"
 gate="$(state_get "$state" code_gate | tr '[:upper:]' '[:lower:]')"

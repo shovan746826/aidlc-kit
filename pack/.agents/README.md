@@ -10,6 +10,7 @@ how to work in this project: plan first, ask before planning, wait for approval,
 | `rules/20-architecture.md` | Architecture hard rules for **this** project | **project** (never overwritten) |
 | `rules/30-learning.md` | The brain: recall lessons, capture, reflect, batch approval | kit |
 | `rules/40-token-efficiency.md` | Tokens: the task brief; read, run and write lean; small sessions; measure | kit |
+| `rules/50-anti-hallucination.md` | Evidence for every claim, verify before use, plan check, honest reports | kit |
 | `skills/project-architecture/` | The full architecture standard for **this** project (Flutter: complete code in `reference/`) | **project** |
 | `skills/project-analysis/` | How to analyze the codebase → `aidlc-docs/project-profile.md` | kit |
 | `skills/aidlc-new-project/` | New project: brief, business plan, requirements, integration plan, architecture, delivery plan | kit |
@@ -21,6 +22,7 @@ how to work in this project: plan first, ask before planning, wait for approval,
 | `skills/aidlc-reflect/` | Reflection and brain care: lessons, counters, scorecard, sharing | kit |
 | `skills/aidlc-research/` | Research protocol: official sources first, saved notes | kit |
 | `skills/aidlc-prompt/` | Prompt optimizer: the task brief and the prompt rewriter | kit |
+| `skills/aidlc-anti-hallucination/` | Full anti-hallucination protocol for large or complex work | kit |
 | `brain/shared/` | Copy of the shared brain (lessons for all projects), read-only | kit |
 | `templates/` | Templates for every AI-DLC document | kit |
 | `.aidlc-version` | Kit version and standard installed here | kit |

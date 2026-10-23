@@ -7,6 +7,7 @@
 @./.agents/rules/20-architecture.md
 @./.agents/rules/30-learning.md
 @./.agents/rules/40-token-efficiency.md
+@./.agents/rules/50-anti-hallucination.md
 @./aidlc-docs/brain/INDEX.md
 @./.agents/brain/shared/INDEX.md
 

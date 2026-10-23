@@ -10,7 +10,7 @@
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SHARED="${AIDLC_KIT_HOME:-$HOME/.aidlc-kit}/brain"
 PROJECT_INDEX_MAX=8192
-SHARED_INDEX_MAX=6144
+SHARED_INDEX_MAX=8192
 
 usage() { sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 

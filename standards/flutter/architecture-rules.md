@@ -6,10 +6,10 @@ description: Flutter house architecture hard rules v3 (feature-first, Riverpod, 
 
 # Architecture Rules: Flutter house standard v3 (mandatory)
 
-Full standard: `.agents/skills/project-architecture/SKILL.md` (read sections 1–24 before planning). Complete,
-compile-checked code: `reference/core.md` (core layer), `feature-items.md` (reference feature),
-`feature-sign-in.md` and `tests.md` in `.agents/skills/project-architecture/reference/`. Open them only when
-you copy their code. Project facts: `aidlc-docs/project-profile.md`.
+Full standard: `.agents/skills/project-architecture/SKILL.md` (read it before planning; it names the topic file in
+`reference/` to open for each area). Complete, compile-checked code: `reference/core.md` (core layer),
+`feature-items.md` (reference feature), `feature-sign-in.md` and `tests.md`. Open them only when you copy their
+code. Project facts: `aidlc-docs/project-profile.md`.
 
 ## Structure
 1. Features live in `lib/features/<feature>/`: `controller/`, `model/request/`, `model/response/`,

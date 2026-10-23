@@ -36,11 +36,12 @@ description: Fix a bug the AI-DLC way. Triage questions, reproduce, find the roo
    plan the smallest change that fixes the root cause, not just the symptom. Alternatives considered.
    Fill the plan's Thinking summary.
 2. A regression test that fails before the fix and passes after it. If it cannot be automated: a manual
-   check and the reason.
+   check and the reason. What must not change (plan §1) stays covered by passing tests.
 3. Files tables, verification, risk and rollback, task plan (Phase 1 regression test → Phase 2 fix →
    Phase 3 verification and review) with **How / Why / Check** under every task, and the before/after
    diagram of the code path in §7.
-4. Gate. 🛑 **HARD STOP.** On approval: plan status `APPROVED <date-time>`; audit log; state
+4. Run `bash ~/.aidlc-kit/verify-plan.sh <plan>` and fix every ✗ (ask the user what the code can't settle).
+   Gate. 🛑 **HARD STOP.** On approval: plan status `APPROVED <date-time>`; audit log; state
    `mode: construction`, `stage: C1 Baseline`, `code_gate: open`, `active_plan:` the bug-fix plan path.
    Then follow `.agents/skills/aidlc-construction/SKILL.md`.
 

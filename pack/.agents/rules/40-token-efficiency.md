@@ -17,9 +17,11 @@ Plain questions get a direct answer and no brief.
 
 ## 2. Read smart
 - Search first (file names, symbols, `grep`), then read only the parts of big files that you need.
+- Batch independent reads and searches into one step (several tool calls at once), not one per turn.
 - Never read an unchanged file twice in a session. Never paste file contents back into the chat.
 - Reuse what is already written: the brief, the plan, `aidlc-docs/project-profile.md`, the brain indexes.
-- Architecture standard: its rules first; open its `reference/` code only when you copy that code.
+- Architecture standard: read its SKILL.md; open a topic file in its `reference/` only when the task touches
+  that area, and its reference code only when you copy that code.
 
 ## 3. Run quiet
 - Show only the output that matters: `flutter test --reporter failures-only` (it keeps the pass count),
@@ -29,6 +31,8 @@ Plain questions get a direct answer and no brief.
 ## 4. Write lean
 - Change only the lines that change. Never rewrite a whole file for a small edit.
 - Lead with the result. Link documents by path instead of repeating them. Keep gate cards short.
+- Fill templates without their instruction comments and example rows (keep the `aidlc:` markers). A section
+  with nothing to say is one line ("None").
 
 ## 5. Small sessions
 - One work item per session. When it is completed, suggest a new session: the state file and the brain

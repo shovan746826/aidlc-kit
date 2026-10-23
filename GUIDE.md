@@ -12,10 +12,11 @@
 10. [The brain: how the agent learns](#10-the-brain-how-the-agent-learns)
 11. [Thinking and research](#11-thinking-and-research)
 12. [Token optimization](#12-token-optimization)
-13. [Worked example](#13-worked-example-a-new-feature)
-14. [Working in a team](#14-working-in-a-team)
-15. [Updating the kit](#15-updating-the-kit)
-16. [Troubleshooting and FAQ](#16-troubleshooting-and-faq)
+13. [Anti-hallucination protocol](#13-anti-hallucination-protocol)
+14. [Worked example](#14-worked-example-a-new-feature)
+15. [Working in a team](#15-working-in-a-team)
+16. [Updating the kit](#16-updating-the-kit)
+17. [Troubleshooting and FAQ](#17-troubleshooting-and-faq)
 
 ---
 
@@ -53,7 +54,7 @@ cd ~/StudioProjects/MyApp && git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc
 
 | Step | What it changes |
 |---|---|
-| 1. `install.sh` | `~/.aidlc-kit/`: the scripts, hooks, settings (`config`) and the shared brain. **Claude Code:** the `/aidlc` command, the `aidlc-reviewer` agent, 4 hooks in `~/.claude/settings.json` (your other settings are kept) and the plan-first rule in `~/.claude/CLAUDE.md`. **Antigravity / Gemini:** the plan-first rule in `~/.gemini/GEMINI.md`. Skip parts with `--no-claude`, `--no-gemini` or `--no-hooks`. |
+| 1. `install.sh` | `~/.aidlc-kit/`: the scripts, hooks, settings (`config`) and the shared brain. **Claude Code:** the `/aidlc` command, the `aidlc-reviewer` agent, 5 hooks in `~/.claude/settings.json` (your other settings are kept) and the plan-first rule in `~/.claude/CLAUDE.md`. **Antigravity / Gemini:** the plan-first rule in `~/.gemini/GEMINI.md`. Skip parts with `--no-claude`, `--no-gemini` or `--no-hooks`. |
 | 2. `init-project.sh` | In the project: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (text you wrote is kept), `.agents/` (rules, skills, templates, the architecture standard, a copy of the shared brain) and `aidlc-docs/` (state, audit log, project brain). The standard is detected (Flutter, Android, iOS or other); choose one with `--standard`. In a git project it adds `.agents/.backup/` to `.gitignore`. |
 | 3. Commit | These paths hold everything step 2 added, so your team and every agent get the same workflow. |
 
@@ -82,7 +83,7 @@ Android 14", "prepare release 1.3.0".
 
 | Agent | Loads automatically | Notes |
 |---|---|---|
-| **Claude Code** | `CLAUDE.md` → imports `AGENTS.md`, the 5 rule files and both brain indexes | Claude Code reads `AGENTS.md` by itself only when there is no `CLAUDE.md`, and never reads `.agents/`: the imports load everything. Skills in `.agents/skills/` are read when the rules route to them; `/aidlc` routes for you. Hooks: plan gate, session context, auto-format, learning hint. |
+| **Claude Code** | `CLAUDE.md` → imports `AGENTS.md`, the 6 rule files and both brain indexes | Claude Code reads `AGENTS.md` by itself only when there is no `CLAUDE.md`, and never reads `.agents/`: the imports load everything. Skills in `.agents/skills/` are read when the rules route to them; `/aidlc` routes for you. Hooks: plan gate, plan check, session context, auto-format, learning hint. |
 | **Antigravity** | `.agents/rules/*.md` (with `trigger: always_on`), `.agents/skills/`, `AGENTS.md`, `GEMINI.md` | Use Planning mode and let the agent ask for your review before changes. Limits (official docs): 24,000 bytes per rule file; always-on and global rules share 20,000 tokens (`doctor` checks both). |
 | **Gemini CLI** | `GEMINI.md` → imports `AGENTS.md` and the rule files; skills in `.agents/skills/` | |
 | **Gemini in Android Studio** | `GEMINI.md` (it wins over `AGENTS.md` in the same folder) → `@` imports `AGENTS.md`, the rule files and both brain indexes | `AGENTS.md` and imports need Android Studio Narwhal 4 Feature Drop or newer. |
@@ -115,47 +116,74 @@ The always-on rule `00-aidlc-core.md` routes each request:
 | NP4 Requirements | Round 3: MVP scope, platforms, quality | `03-requirements.md` (stories with Given/When/Then) |
 | NP5 Integration plan | Round 4: backend, auth, payments, push, analytics, environments | `04-integration-plan.md` (contracts, sequence diagrams, environments) |
 | NP6 Architecture | Round 5: storage, offline, navigation, design values | `05-architecture.md` (+ architecture skill updates) |
-| NP7 Delivery plan | Round 6 only if needed | `06-delivery-plan.md` (units, milestones, traceability) |
+| NP7 Delivery plan | Round 6 only if needed | `06-delivery-plan.md` (units, shared contracts, milestones, traceability) |
 | NP8 Scaffold plan | none | `work/001-setup-project-scaffold/implementation_plan.md` → construction |
 
-After the scaffold, each unit of the delivery plan becomes a feature work item.
+After the scaffold, each unit of the delivery plan becomes a feature work item. When the last unit of a milestone
+is done, the milestone's user journeys are run end to end before the next milestone starts.
 
 ### 4.2 Feature or change (`aidlc-feature`)
-F1 questions → F2 `requirements.md` → F3 `integration-plan.md` → F4 `implementation_plan.md` (🛑 approval)
-→ construction. **Light mode** (changes and small features of about 5 files or fewer with no new API) merges
-F2 and F3 into one approval. Questions and the plan approval are never skipped.
+F1 questions → F2 `requirements.md` → F3 `integration-plan.md` (at full depth with a **design**: data model,
+states and flows, how each NFR is met and verified, compatibility and rollout) → F4 `implementation_plan.md`
+(🛑 approval) → construction. **Light mode** (changes and small features of about 5 files or fewer, with no new API,
+package or data change) skips F2 and F3: one **light plan** holds the stories with acceptance criteria, the
+integration points and one diagram, and it is the only approval. Questions and the plan approval are never
+skipped.
 
 **Every plan shows how it works, before you approve it:**
-- **Three diagrams** (Mermaid; GitHub, VS Code, Android Studio and Antigravity draw them): the **plan flow**
+- **Three diagrams** (a light plan: one; Mermaid, drawn by GitHub, VS Code, Android Studio and Antigravity): the **plan flow**
   (tasks in order, what needs what, the checks), the **file map** (new files green, changed files orange,
   how they connect) and the **runtime flow** (what happens when the user uses the feature, with the error
   path).
 - **How / Why / Check under every task:** the approach (file, change, key code shape), the reason (a
   requirement, a standard section or a lesson) and the proof that it works. During construction the agent
   builds each task as its How says and runs its Check; the reviewer checks both.
+- **Traceability:** every user story has a file or task and a test, every NFR a named check, and an
+  **end-to-end check** proves the flow the user sees. `verify-plan.sh` stops the plan at the gate otherwise.
 - Bug-fix plans: a **before/after** diagram of the code path and How / Why / Check under each task.
 
 ### 4.3 Bug fix (`aidlc-bugfix`)
-B1 triage questions → B2 reproduce and root cause (`path:line` evidence) → B3 `bugfix_plan.md` with a
-regression test that fails before the fix (🛑 approval) → construction.
+B1 triage questions → B2 reproduce and root cause (`path:line` evidence) → B3 `bugfix_plan.md` with what must
+not change and a regression test that fails before the fix (🛑 approval) → construction.
 
 ### 4.4 Construction (`aidlc-construction`)
-C1 baseline (verification before changes) → C2 build phase by phase with live status
-(`⏳ [PENDING]` → `🔄 [IN PROGRESS]` → `✅ [COMPLETED]`), reporting after each phase → C3 tests → C4 review
-and gap analysis → C5 verification (🛑 must pass) → C6 completion report, feature registry, gate closed.
+C1 baseline (verification before changes) → C2 build phase by phase, **logic test first** (write the test,
+see it fail, then the code), with live status (`⏳ [PENDING]` → `🔄 [IN PROGRESS]` → `✅ [COMPLETED]`),
+reporting after each phase → C3 remaining tests (widget, integration, end-to-end) → C4 review and gap analysis
+→ C5 verification and the end-to-end check with its evidence (🛑 must pass; `verify-plan.sh --done` proves every
+task, report and approval) → C6 completion report, feature registry, gate closed.
 
 **Plan changes:** if the agent needs a file the plan does not list, it stops, adds a "proposed" row to the
 plan's "Plan changes" table, explains it, and waits for your approval.
 
 ### 4.5 Release (`aidlc-release`)
 R1 questions → R2 `release-plan.md` (🛑 approval) → R3 version, changelog, builds → R4 hand-over: **you
-publish** (the agent never uploads, tags or pushes by itself) → R5 monitoring and lessons learned.
+publish** (the agent never uploads, tags or pushes by itself) → R5 monitoring and lessons learned. A staged
+rollout widens only while crash-free users stay at the target; web and backend projects deploy instead of
+publishing.
 
 ### 4.6 Status, continue, switching
 - "status": progress, stage, code gate, last approval, next action.
 - "continue": resumes at the recorded stage (in any agent).
 - Only one work item is active at a time. To switch, the agent parks the current one (closes the gate) and
   lists it under "Parked".
+
+### 4.7 Analysis and the architecture choice (`project-analysis`)
+"Analyze this project" (`/aidlc analyze`) maps the project and writes `aidlc-docs/project-profile.md` (A1–A4,
+gate). The first time, it then asks **which architecture AI-DLC should follow** (A5):
+1. It compares, with `path:line` evidence: architecture and folders, API calling, state management,
+   routing, storage and session, error handling, dependency injection, design system and testing, each
+   against the AI-DLC standard for your stack, with the risks it found.
+2. It asks: **A) your architecture** (it writes your standard from your code) · **B) the AI-DLC standard**
+   (new code follows it; old code changes only through planned work items) · **C) a mix** (one question per
+   area, e.g. keep your state management, take AI-DLC's API calling). Each option comes with a ★ and the
+   reason.
+3. After your approval it changes only `.agents/` (never your code): your architecture skill and
+   `20-architecture.md` (marked as the project's own, so updates keep them), or `--update-architecture` for
+   B. It writes an ADR in `aidlc-docs/project/decisions/` and profile section 15.
+
+Every later plan follows the chosen standard: its new-feature checklist gives the plan's phases and files. To
+choose again later: `/aidlc architecture`, or "keep my architecture" / "use the AI-DLC architecture".
 
 ## 5. Answering questions
 
@@ -189,7 +217,7 @@ Reply: approve · change: <what> · stop
 ```
 | Reply | Effect |
 |---|---|
-| `approve` · `approved` · `proceed` · `go ahead` · `do it` · `lgtm`, a plain `yes` / `ok` right after the card, or clicking **Approve** in a question card | Approved and logged with date and time; next stage |
+| `approve` · `approved` · `proceed` · `go ahead` · `do it` · `lgtm`, a plain `yes` / `ok` right after the card, or clicking **Approve** in a question card | Approved: the document's Status becomes APPROVED and the audit log gets a row with the stage; next stage |
 | `change: …` (also "ok, but …") | The document is revised and shown again |
 | `stop` | The work item is paused (gate closed) |
 | anything else | **Not** an approval: the agent waits |
@@ -200,7 +228,8 @@ The `plan-gate.sh` hook runs before every file edit by Claude:
 
 | Situation | Result |
 |---|---|
-| File in `aidlc-docs/`, `.agents/`, or `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | allowed (planning files) |
+| File in `aidlc-docs/`, `.agents/` (the architecture skill, `20-architecture.md`, your own rule files), or `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` | allowed (planning files) |
+| The kit's own files: rules and skills marked `aidlc-kit:managed`, the shared-brain copy in `.agents/brain/shared/` | like code: only with an approved plan that lists them (they are replaced on every kit update) |
 | `code_gate: closed` in `aidlc-state.md` | **blocked**: "plan first" |
 | Gate open, plan status `APPROVED`, file listed in the Path column of the plan's Files tables | allowed |
 | Gate open, but the plan still says `DRAFT` (or has no status line) | **blocked**: "not approved" |
@@ -224,7 +253,7 @@ git does not track yet (new files), so existing code is never reformatted. Dart 
 the project has the tool and its config.
 
 **Limits:** the hook guards Claude's file-edit tools. Shell commands that write files are forbidden by the
-rules, not blocked by the hook. Antigravity and Gemini have no hooks; they follow the always-on rules.
+rules, not blocked by the hook; `verify-plan.sh --done` still finds such changes after the build. Antigravity and Gemini have no hooks; they follow the always-on rules.
 
 ## 8. Files and folders
 
@@ -239,9 +268,11 @@ rules, not blocked by the hook. Antigravity and Gemini have no hooks; they follo
 │   ├── skills/project-architecture/reference/  project: its complete code (Flutter standard)
 │   ├── rules/30-learning.md                    kit: the brain rules
 │   ├── rules/40-token-efficiency.md            kit: the token rule (brief, lean context)
-│   ├── skills/<10 workflow skills>/SKILL.md    kit (incl. aidlc-think, aidlc-reflect, aidlc-research, aidlc-prompt)
+│   ├── rules/50-anti-hallucination.md          kit: evidence for every claim, plan check
+│   ├── skills/<11 workflow skills>/SKILL.md    kit (incl. aidlc-think, aidlc-reflect, aidlc-research, aidlc-prompt,
+│   │                                           aidlc-anti-hallucination)
 │   ├── brain/shared/                           kit: copy of the shared brain (read-only)
-│   ├── templates/                              kit: 23 templates
+│   ├── templates/                              kit: 24 templates
 │   ├── .aidlc-version                          kit version + standard
 │   ├── .backup/<time>/                         replaced files (git-ignored)
 │   └── archive/<time>/                         old files moved by --migrate
@@ -263,7 +294,7 @@ overwritten. The architecture files change only together, with `--update-archite
 
 | Standard | Status | Shape |
 |---|---|---|
-| **Flutter** | House standard v3: built from a production app. Rules in `SKILL.md` (45 KB, read before every plan); complete core, feature and test code in 4 `reference/` files (opened only when needed), compile-checked on Riverpod 2 and 3 (`FLUTTER-STANDARD-V3-ANALYSIS.md`) | Riverpod + GoRouter + Dio + Hive + ScreenUtil; `controller/ model/ presentation/ provider/ repository/` |
+| **Flutter** | House standard v3: built from a production app. Rules in a 23 KB `SKILL.md` core (read before every plan) and 5 topic files (opened when a task touches that area); complete core, feature and test code in 4 more `reference/` files (opened only when needed), compile-checked on Riverpod 2 and 3 (`FLUTTER-STANDARD-V3-ANALYSIS.md`) | Riverpod + GoRouter + Dio + Hive + ScreenUtil; `controller/ model/ presentation/ provider/ repository/` |
 | **Android** | Proposed v1: review it | Kotlin + Compose + MVVM + Hilt + Retrofit; `viewmodel/ model/ presentation/ di/ repository/` |
 | **iOS** | Proposed v1: review it | Swift + SwiftUI + MVVM + async/await; `ViewModel/ Model/ View/ Repository/` |
 | **Generic** | Generated per project | During analysis (existing code) or NP6 (new project), with your approval |
@@ -271,6 +302,8 @@ overwritten. The architecture files change only together, with `--update-archite
 All four share the same section layout, so every project's standard reads the same way.
 
 **Customizing**
+- **Keep your existing architecture:** analyze the project (or `/aidlc architecture`) and choose "your
+  architecture" (section 4.7): the agent writes your standard from your code, and every plan follows it.
 - **One project only:** edit `.agents/skills/project-architecture/SKILL.md` and `.agents/rules/20-architecture.md`
   in that project. The kit never overwrites them.
 - **All future projects:** edit `standards/<stack>/` in the kit, run `install.sh`, then use
@@ -292,7 +325,7 @@ aidlc-docs/brain/            this project (committed with the code)
 ├── research/R-003-….md      researched best practice with sources and a re-check date
 └── metrics.md               scorecard per work item + trend
 .agents/brain/shared/        copy of the shared brain (all projects)
-~/.aidlc-kit/brain/          the shared brain itself (starts with 27 verified lessons)
+~/.aidlc-kit/brain/          the shared brain itself (starts with 28 verified lessons)
 ```
 
 **The loop**
@@ -345,6 +378,8 @@ see why the plan looks the way it does.
 **Research** (`aidlc-research`) uses official docs and the installed package source first, then standards
 (OWASP MASVS, WCAG, platform guidelines), then reputable sources. It checks versions and dates, verifies
 locally when it can, and saves a note in `aidlc-docs/brain/research/` that is reused until its re-check date.
+When no document can settle a question, the agent proposes a **spike**: a time-boxed experiment in
+`spikes/<slug>/`, outside the app, approved like any plan; its answer becomes a research note.
 
 ## 12. Token optimization
 
@@ -376,11 +411,13 @@ Done when, plus what changed, the gaps to fill and the size before and after. No
 facts are marked `[fill in: …]`.
 
 **3. The token rule** (`.agents/rules/40-token-efficiency.md`, always on):
-- **Read smart:** search first, read only the needed part of big files, never re-read an unchanged file,
-  reuse the profile, the brain and the plan.
+- **Read smart:** search first, read only the needed part of big files, read several files in one step,
+  never re-read an unchanged file, reuse the profile, the brain and the plan; open the architecture
+  standard's topic files only for the areas the task touches.
 - **Run quiet:** `flutter test --reporter failures-only` printed 826 bytes instead of 8,089 for the same 39
   tests and the same pass count; long build logs go through `tail -n 40`.
-- **Write lean:** change lines instead of rewriting files; link documents instead of repeating them.
+- **Write lean:** change lines instead of rewriting files; link documents instead of repeating them; fill
+  templates without their instruction comments; small changes get a light plan (one document, one approval).
 - **Small sessions:** one work item per session; the state file and the brain carry everything over.
 
 **4. Measure (Claude Code).** `tokens.sh` reads only the numbers in Claude Code's own records, never the
@@ -400,7 +437,52 @@ item, and a work item that used more than twice the usual becomes a lesson ("why
 | Gemini CLI | `/stats` (token use) · `/compress` (summarize the conversation) |
 | Antigravity | a new conversation per work item (the state file carries the context over) |
 
-## 13. Worked example: a new feature
+## 13. Anti-hallucination protocol
+
+An agent "hallucinates" when it invents something: a file, a class or method, a package, a version, a fact
+about your project, or a result it never saw. The kit stops this in layers, from research that works:
+Anthropic's guidance (allow "I don't know", ground in quotes, cite every claim), Chain-of-Verification (check
+each claim again from the source) and, for code, mechanical checks against the real project.
+
+**1. The rule (always on, every agent):** `.agents/rules/50-anti-hallucination.md`
+- Every claim has evidence seen in this session: `path:line`, command output, your words or an official URL.
+  Otherwise it is an `[ASSUMPTION]` or a question; "unknown" is a valid answer.
+- Verify before use: the agent finds and reads a class or method before calling it, checks the installed
+  package version and its source, confirms a new package's exact name on the official registry (invented
+  names are an attack target: "slopsquatting"), and reads a file right before editing it.
+- Long tasks: it re-reads the brief, the plan and the state at each phase and after a pause or a summarized
+  conversation.
+- It reports only real output and says when a check was not run.
+
+**2. Facts and assumptions in every plan:** each fact the plan depends on, with its evidence and status
+(verified · assumption · unknown). An unknown fact never reaches a gate: the agent finds it in the code or
+docs, or asks you.
+
+**3. The plan check:** `bash ~/.aidlc-kit/verify-plan.sh <plan>` (`/aidlc verify`) checks that:
+- every file to modify exists, with "did you mean `router_config.dart`?" for close names;
+- files to create are new;
+- classes and methods marked "changed" exist in the code;
+- cited lessons and research notes exist;
+- verified facts show evidence, and no fact is unknown;
+- (draft plans) the earlier stages were approved, every user story has a file or task and a test, every NFR a
+  named check, and no blocking question is open.
+
+The agent fixes every ✗ before you see the plan. Before the build (C1), `--baseline` records the files that
+already had uncommitted changes; after the build, `--done` checks that every planned file exists, nothing
+outside the plan changed, every numbered task is done, and the test and review reports show the baseline, the
+verification and a PASS. Your earlier changes show up only as warnings and are never reverted. Both also work
+when the app is a folder inside a bigger repository.
+
+**4. In Claude Code it is automatic:** a hook runs the check the moment the agent writes a plan file and
+tells the agent what does not exist, so it fixes the plan before you see it.
+
+**5. Large or complex work** (full depth, a new project, more than about 5 files, a new package or API, a
+migration, security) follows `.agents/skills/aidlc-anti-hallucination/SKILL.md`: ground first, draft with
+the facts table, answer verification questions again from the sources, check, keep names and numbers
+consistent, report honestly. The reviewer treats an invented API or an unsupported claim as Blocking, and
+every hallucination caught becomes a lesson.
+
+## 14. Worked example: a new feature
 
 > **You:** new feature: budget alerts. Warn me when a category passes its monthly budget.
 
@@ -453,7 +535,7 @@ item, and a work item that used more than twice the usual becomes a lesson ("why
 > ```
 > Feature registry updated. Code gate closed. Commit? Next work item in a new session.
 
-## 14. Working in a team
+## 15. Working in a team
 
 - **Commit `.agents/` and `aidlc-docs/`.** Plans and decisions get reviewed in pull requests like code.
   A good PR description is the work item's completion report plus links to its plan.
@@ -462,7 +544,7 @@ item, and a work item that used more than twice the usual becomes a lesson ("why
 - **Mob elaboration:** run the question rounds of a new project together on a call, with the agent asking
   and the team answering. Approvals are recorded with the person's words in the audit log.
 
-## 15. Updating the kit
+## 16. Updating the kit
 
 1. Run `bash install.sh` in the new kit folder. It updates `~/.aidlc-kit` and the Claude Code layer; your
    settings and your shared brain are kept: new settings and starter lessons are added, starter lessons you
@@ -473,7 +555,8 @@ item, and a work item that used more than twice the usual becomes a lesson ("why
    you at session start when a project's pack is older than the kit, and `doctor` does too.
 3. Architecture standard: init keeps the project's copy and notes when the kit has a different version. To
    switch, add `--update-architecture`: the skill, its `reference/` files and `20-architecture.md` are
-   replaced together (your own versions are archived in `.agents/archive/`, kit-made ones backed up).
+   replaced together (your own versions are archived in `.agents/archive/`, kit-made ones backed up). Flutter
+   projects on the older 45 KB standard get the lean 23 KB core and its topic files this way.
 4. Commit: `git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc-docs .gitignore && git commit -m "chore: update AI-DLC"`
 5. Check: `/aidlc doctor` (Claude Code) or `bash ~/.aidlc-kit/claude/bin/doctor.sh <project>`.
 
@@ -481,7 +564,7 @@ item, and a work item that used more than twice the usual becomes a lesson ("why
 `bash tests/run-tests.sh` (and `bash tests/flutter-standard-check.sh` after changing the Flutter standard),
 then follow steps 1–5.
 
-## 16. Troubleshooting and FAQ
+## 17. Troubleshooting and FAQ
 
 **Claude wrote nothing: "AI-DLC plan gate: blocked …".** Working as intended. Either no plan is approved
 (`code_gate: closed`), or the file is not in the plan. Approve the plan or the plan change. For a one-off,

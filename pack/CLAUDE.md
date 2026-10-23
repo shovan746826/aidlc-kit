@@ -7,6 +7,7 @@
 @.agents/rules/20-architecture.md
 @.agents/rules/30-learning.md
 @.agents/rules/40-token-efficiency.md
+@.agents/rules/50-anti-hallucination.md
 @aidlc-docs/brain/INDEX.md
 @.agents/brain/shared/INDEX.md
 
@@ -18,6 +19,8 @@ Claude Code notes:
 - For review and gap analysis, use the `aidlc-reviewer` agent if it is available.
 - For question rounds you may use the AskUserQuestion tool (up to 4 questions per call). Still record every
   answer in `questions.md`.
+- When you write a plan, a hook runs `verify-plan.sh` on it and shows you invented paths, classes or IDs:
+  fix them before the gate.
 - Tokens: you may suggest `/context` (what fills the context), `/compact <focus>` at the end of a phase, and
   `/clear` (a new session) after a work item.
 <!-- AIDLC:END -->

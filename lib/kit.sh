@@ -88,7 +88,7 @@ json_valid() {
 }
 
 # settings_hooks <add|remove> <settings.json> <hooks-dir>
-# Adds (or removes) the four AI-DLC hooks. Other settings and hooks are kept.
+# Adds (or removes) the five AI-DLC hooks. Other settings and hooks are kept.
 settings_hooks() {
   local action="$1" settings="$2" hooks="$3" tool tmp
   tool="$(json_tool)" || die "jq or python3 is needed to edit $settings"
@@ -100,8 +100,9 @@ settings_hooks() {
        --arg gate "bash \"$hooks/plan-gate.sh\"" \
        --arg fmt "bash \"$hooks/auto-format.sh\"" \
        --arg ses "bash \"$hooks/session-start.sh\"" \
-       --arg hint "bash \"$hooks/learn-hint.sh\"" '
-      def ours: (.command // "") | test("claude/hooks/(plan-gate|auto-format|session-start|learn-hint)\\.sh");
+       --arg hint "bash \"$hooks/learn-hint.sh\"" \
+       --arg check "bash \"$hooks/plan-check.sh\"" '
+      def ours: (.command // "") | test("claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check)\\.sh");
       def clean: map(if ((.hooks // []) | length) > 0 and ((.hooks // []) | all(ours))
                      then empty
                      else .hooks = ((.hooks // []) | map(select(ours | not))) end);
@@ -110,7 +111,8 @@ settings_hooks() {
         | .hooks.PreToolUse = (((.hooks.PreToolUse // []) | clean)
             + [{matcher: "Edit|Write|MultiEdit|NotebookEdit", hooks: [{type: "command", command: $gate, timeout: 15}]}])
         | .hooks.PostToolUse = (((.hooks.PostToolUse // []) | clean)
-            + [{matcher: "Edit|Write|MultiEdit", hooks: [{type: "command", command: $fmt, timeout: 60}]}])
+            + [{matcher: "Edit|Write|MultiEdit", hooks: [{type: "command", command: $fmt, timeout: 60},
+                                                        {type: "command", command: $check, timeout: 30}]}])
         | .hooks.SessionStart = (((.hooks.SessionStart // []) | clean)
             + [{hooks: [{type: "command", command: $ses, timeout: 15}]}])
         | .hooks.UserPromptSubmit = (((.hooks.UserPromptSubmit // []) | clean)
@@ -129,7 +131,7 @@ import json, re, sys
 action, path, hooks = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(path, encoding="utf-8") as f:
     data = json.load(f)
-ours = re.compile(r"claude/hooks/(plan-gate|auto-format|session-start|learn-hint)\.sh")
+ours = re.compile(r"claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check)\.sh")
 
 def clean(groups):
     result = []
@@ -148,13 +150,13 @@ if action == "add":
     def cmd(name):
         return 'bash "%s/%s"' % (hooks, name)
     wanted = [
-        ("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", cmd("plan-gate.sh"), 15),
-        ("PostToolUse", "Edit|Write|MultiEdit", cmd("auto-format.sh"), 60),
-        ("SessionStart", None, cmd("session-start.sh"), 15),
-        ("UserPromptSubmit", None, cmd("learn-hint.sh"), 10),
+        ("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", [("plan-gate.sh", 15)]),
+        ("PostToolUse", "Edit|Write|MultiEdit", [("auto-format.sh", 60), ("plan-check.sh", 30)]),
+        ("SessionStart", None, [("session-start.sh", 15)]),
+        ("UserPromptSubmit", None, [("learn-hint.sh", 10)]),
     ]
-    for event, matcher, command, timeout in wanted:
-        entry = {"hooks": [{"type": "command", "command": command, "timeout": timeout}]}
+    for event, matcher, commands in wanted:
+        entry = {"hooks": [{"type": "command", "command": cmd(name), "timeout": timeout} for name, timeout in commands]}
         if matcher:
             entry = {"matcher": matcher, **entry}
         all_hooks[event] = clean(all_hooks.get(event) or []) + [entry]

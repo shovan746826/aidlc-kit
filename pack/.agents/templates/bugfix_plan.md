@@ -12,10 +12,21 @@
 - Options: A … (score) · B … (score) → chosen: …, because …
 - Pre-mortem: 1) <risk> → <mitigation> 2) …
 - Self-review changes: …
+- Verification: <n> facts verified · <n> assumptions (listed at the gate) · 0 unknown · verify-plan.sh ✓
+
+## Facts and assumptions
+<!-- Anti-hallucination (.agents/rules/50-anti-hallucination.md): every fact this plan depends on, with the
+     evidence you saw in this session (path:line, command output, URL, the user's words).
+     Status: verified · assumption (listed at the gate) · unknown (find it or ask the user before the gate).
+     `bash ~/.aidlc-kit/verify-plan.sh <this file>` checks this table. -->
+| # | Claim the plan depends on | Evidence | Status |
+|---|---|---|---|
+| F1 | <e.g. `ReportChart` divides by `total`> | <`lib/features/report/report_chart.dart:42`> | <verified> |
 
 ## 1. Symptom
 - Expected: …
 - Actual: …
+- Must not change: … (the behaviour around the bug that stays the same, and the tests that prove it)
 
 ## 2. Reproduction
 - Steps: 1. … 2. … 3. …
@@ -94,3 +105,5 @@ Rollback: …
 **Ready to approve?** ☐ root cause has file:line evidence ☐ the fix targets the cause ☐ a regression test is
 planned ☐ blast radius checked ☐ no behaviour change beyond the bug ☐ the example rows are replaced
 ☐ the before/after diagram shows the real code path ☐ every task has How, Why and Check
+☐ what must not change is stated and tested ☐ no fact is "unknown" (ask the user instead)
+☐ `verify-plan.sh` shows no ✗

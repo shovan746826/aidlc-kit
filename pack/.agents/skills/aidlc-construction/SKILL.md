@@ -23,13 +23,18 @@ Update `stage:` in the state file at every stage.
 
 ## C1. Baseline
 Run the verification commands from the profile before changing anything and record the results
-(`10-quality-gates.md` §2). If the project does not build now, tell the user before you start.
+(`10-quality-gates.md` §2). If the project does not build now, tell the user before you start. Then run
+`bash ~/.aidlc-kit/verify-plan.sh <plan> --baseline`: it records the files that already have uncommitted
+changes (`git-baseline.txt` next to the plan), so C5 can tell them from yours.
 
 ## C2. Build, phase by phase
 For each task of the plan's task plan, in order:
 1. Mark it `🔄 **[IN PROGRESS]**` in the plan file. Say in chat: "🔄 Now: <task>".
 2. Do it as the task's **How** says, **only in files listed in the plan**, following the architecture skill
    exactly (copy the reference implementation's patterns if the profile names one), and run its **Check**.
+   **Logic is built test first** (models, repositories, controllers or view models, notifiers, utilities):
+   write the task's test from its Check, run it and see it fail for the expected reason, then write the code
+   until it passes. Screens and wiring: build them, then add their test right away.
    If the How turns out wrong, that is a plan change: update the How and the diagrams after approval.
 3. Mark it `✅ **[COMPLETED]**` as soon as it is done. Keep the project compiling.
 4. At the end of each phase: run the quick check (e.g. `flutter analyze` and
@@ -45,9 +50,10 @@ For each task of the plan's task plan, in order:
    markers), log `PLAN-CHANGE` in the audit log, continue. Rejected → stay within the plan, or stop and
    discuss.
 
-## C3. Tests
-Write the tests from the plan's test plan, following the architecture skill's testing section. Each
-acceptance criterion gets at least one test. Run them.
+## C3. Remaining tests
+Write the rest of the plan's test plan (widget, integration and end-to-end tests that need the whole slice),
+following the architecture skill's testing section. Every acceptance criterion has at least one test and every
+NFR its named check. Run them all.
 
 ## C4. Review and gap analysis
 Do the review in `10-quality-gates.md` §3 on every created and modified file. A separate reviewer agent is
@@ -55,8 +61,13 @@ better than reviewing your own work, if your tool has one. Fix every gap (a fix 
 plan change procedure). Write `review-report.md`.
 
 ## C5. Verification: 🛑 HARD STOP
-Follow `10-quality-gates.md` §4. Compare with the baseline. Fix and re-run until clean. Record the real
-results in `test-report.md`. Never continue to C6 with failing verification.
+Follow `10-quality-gates.md` §4. Compare with the baseline. Fix and re-run until clean. Run the plan's
+**end-to-end check**. Record the real results in `test-report.md` §3, quoting the summary lines and the
+end-to-end evidence (test output or screenshot paths). Run `bash ~/.aidlc-kit/verify-plan.sh <plan> --done`:
+every planned file exists, no file outside the plan changed, every numbered task is ✅, and the test and review
+reports are complete. Files that were already changed before C1 and
+are untouched since are only warnings: never revert them; name them in the report. Never continue to C6 with
+failing verification.
 
 ## Error recovery (C2–C5)
 1. Build/test error → find the root cause, fix it, record what went wrong in `test-report.md`.
@@ -105,8 +116,9 @@ For a release plan (from `aidlc-release`): C3 is the smoke-test checklist, C5 is
 publishing is always done by the user, or by you only after the user approves that exact action.
 
 ## Resuming
-Read the plan: continue at the first task that is not ✅. Run the quick check first. If the code on disk
-does not match the statuses, tell the user before you continue.
+Re-ground first (`50-anti-hallucination.md` §4): read the brief, the plan and the state file again. Continue at
+the first task that is not ✅. Run the quick check first. If the code on disk does not match the statuses,
+tell the user before you continue.
 
 ## Rules
 - Never mark a task ✅ that is not done. Never mark a work item done while verification fails.

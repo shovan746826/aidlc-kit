@@ -5,6 +5,10 @@
 > 🛑 No code is written until the user explicitly approves this plan ("approve", "proceed", "go ahead", "do it",
 > or a plain "yes" / "ok" reply to the gate card).
 > Examples below use the Flutter house standard. Use your project's standard and paths.
+<!-- Light plan (light mode: about 5 files or fewer, no new API, package or data change): this is the only document
+     and the only gate. §1 also holds the user stories with acceptance criteria, §2 the integration points; one
+     diagram (6c when behaviour changes, otherwise 6b); §7–11 and §13 take a line or two each; §12 and §14 stay
+     complete (a one-line "How · Why · Check" per task is fine). -->
 
 ## Thinking summary
 <!-- From .agents/skills/aidlc-think/SKILL.md. Keep it short. -->
@@ -14,9 +18,20 @@
 - Options: A … (score) · B … (score) → chosen: …, because …
 - Pre-mortem: 1) <risk> → <mitigation> 2) …
 - Self-review changes: …
+- Verification: <n> facts verified · <n> assumptions (listed at the gate) · 0 unknown · verify-plan.sh ✓
+
+## Facts and assumptions
+<!-- Anti-hallucination (.agents/rules/50-anti-hallucination.md): every fact this plan depends on, with the
+     evidence you saw in this session (path:line, command output, URL, the user's words).
+     Status: verified · assumption (listed at the gate) · unknown (find it or ask the user before the gate).
+     `bash ~/.aidlc-kit/verify-plan.sh <this file>` checks this table. -->
+| # | Claim the plan depends on | Evidence | Status |
+|---|---|---|---|
+| F1 | <e.g. `ItemsRepository.getItems({page})` exists> | <`lib/features/items/repository/items_repository.dart:14`> | <verified> |
 
 ## 1. Objective
 What is being implemented and why (2–4 sentences). What is NOT included.
+Light plan: then the user stories with Given/When/Then acceptance criteria, error and empty cases included.
 
 ## 2. Scope analysis
 Existing files, classes and modules affected, found by reading the code:
@@ -41,7 +56,7 @@ Existing features touched: …
 |---|---|---|---|
 
 ## 6. Diagrams: how the plan works
-<!-- Three diagrams, drawn from this plan's real tasks and files (examples below). Keep them in step with the
+<!-- Three diagrams (a light plan: one), drawn from this plan's real tasks and files (examples below). Keep them in step with the
      Files tables and the task plan; a plan change updates them. -->
 
 **6a. Plan flow:** the order of the tasks, what each one needs, the checks and where it ends.
@@ -128,17 +143,21 @@ Commands that change files (generators, installers), e.g. `flutter pub add <pkg>
 How to undo this change (revert the commit; remove the route; reverse a data migration; turn off a flag).
 
 ## 12. Test plan
-| Test file | Type (unit · widget · integration) | What it proves | AC |
+Every user story (US-n) and every NFR-n has a row here, or §13 names its check (`verify-plan.sh` traces them).
+| Test file | Type (unit · widget · integration · end-to-end) | What it proves | AC · NFR |
 |---|---|---|---|
 
 ## 13. Verification
 Commands from `aidlc-docs/project-profile.md` → "Verification commands". Pass criteria: zero errors, no new
 warnings or lint issues compared with the baseline, all tests pass, build succeeds.
+**End-to-end check:** how the user-visible flow is proven (an integration test, or running the app with
+screenshots) and the stories it covers; its output is the evidence in `test-report.md`.
 
 ## 14. Task plan
 <!-- Live status (00-aidlc-core §7): ⏳ [PENDING] → 🔄 [IN PROGRESS] → ✅ [COMPLETED]; ⛔ [BLOCKED]; ⏭️ [SKIPPED] -->
 <!-- Under every task: How (the approach: file, change, key code shape), Why (the requirement, standard section
-     or lesson behind it), Check (how you will know it works). Three short lines; the examples show the level. -->
+     or lesson behind it), Check (how you will know it works). Three short lines; the examples show the level.
+     Logic tasks (models, repositories, controllers, notifiers, utilities) are built test first (construction C2). -->
 ### Phase 1: Data layer
 - [ ] ⏳ **[PENDING]** T1 Create response model `lib/features/items/model/response/item_list_response_model.dart`
   - How: `fromJson`/`toJson` for the JSON sample in §7, nullable fields, the JSON sample comment on top
@@ -172,7 +191,7 @@ warnings or lint issues compared with the baseline, all tests pass, build succee
   - How: … · Why: … · Check: …
 
 ### Phase 5: Tests and verification
-- [ ] ⏳ **[PENDING]** Write the tests from the test plan
+- [ ] ⏳ **[PENDING]** Remaining tests from the test plan (widget, integration, end-to-end)
 - [ ] ⏳ **[PENDING]** Review and gap analysis (`10-quality-gates.md` §3)
 - [ ] ⏳ **[PENDING]** Verification: analyzer, tests, build (`10-quality-gates.md` §4)
 - [ ] ⏳ **[PENDING]** Completion report and knowledge retention
@@ -187,4 +206,6 @@ warnings or lint issues compared with the baseline, all tests pass, build succee
 ☐ no dependency or file-changing command outside §9 ☐ the project still compiles after each phase
 ☐ risks and rollback are concrete ☐ no [OPEN-BLOCKING] question left ☐ Thinking summary filled
 ☐ the template's example rows are replaced by real ones ☐ every task has How, Why and Check
-☐ the three diagrams show this plan's real tasks and files and match the tables
+☐ the diagrams (three; a light plan: one) show this plan's real tasks and files and match the tables
+☐ every story and NFR is traced (§12, §13) ☐ the end-to-end check is named
+☐ no fact is "unknown" (ask the user instead) ☐ `verify-plan.sh` shows no ✗

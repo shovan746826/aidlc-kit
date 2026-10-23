@@ -1,4 +1,4 @@
-# AI-DLC Kit v2.5
+# AI-DLC Kit v3.0
 
 **AI-Driven Development Lifecycle for every project and every AI agent, with a brain that learns.**
 The agent analyzes, asks questions, thinks the plan through, and waits for your approval. Only then does it
@@ -30,19 +30,35 @@ standard generated from any other codebase.
 ## What you get
 - **Plan first, always.** No file changes without an approved plan. Claude Code enforces it with a hook.
 - **Questions before every plan**, multiple choice with a ★ recommendation. Nothing is guessed.
+- **Every stage is proven, not just promised:** before you see a plan, `verify-plan.sh` checks that the earlier
+  stages were approved, that every user story has a file or task and a test, every NFR a named check, and that
+  no blocking question is open. After the build it checks that every task is done and that the test and review
+  reports show the baseline, the verification and a PASS. `/aidlc doctor` lists finished work items without
+  their reports.
+- **Built for complex work:** a design step for full-depth features (data model, states and flows, how each NFR
+  is met and verified, compatibility and rollout), test-first construction for logic, an end-to-end check with
+  evidence, shared contracts and milestone checks across units, and approved spikes for real unknowns.
 - **New projects get a full analysis:** project brief, **business plan**, requirements, **integration plan**,
   architecture, delivery plan.
 - **A thinking protocol** for every plan: options in a decision table, a pre-mortem, a self-review.
 - **Research for big decisions:** official sources first, version-checked, saved and reused.
+- **Your architecture or AI-DLC's:** after the analysis the agent compares your architecture (API calling,
+  state management, routing, storage, …) with the AI-DLC standard and asks: keep yours (it writes your
+  standard from your code), take AI-DLC's, or mix per area. Every plan then follows your choice.
 - **A self-learning brain:** 7 learning triggers, reflection after each task, lessons with evidence, your
   batch approval, a shared brain for all projects, and a scorecard that shows improvement.
+- **An anti-hallucination protocol:** evidence for every claim, a facts table in every plan, and
+  `verify-plan.sh`, which catches invented files, classes, methods, lessons and unknown facts before you
+  see a plan (automatic in Claude Code). Large or complex work also gets a Chain-of-Verification round.
 - **A token optimizer:** every request becomes a short task brief (better results, less rework), a prompt
-  rewriter (`/aidlc prompt`), an always-on token rule (read, run and write lean; one work item per session)
-  and real token numbers per work item from Claude Code's own records (`tokens.sh`).
+  rewriter (`/aidlc prompt`), an always-on token rule (read, run and write lean; one work item per session),
+  light plans for small changes (one document, one approval, one diagram) and real token numbers per work item
+  from Claude Code's own records (`tokens.sh`).
 - **Flutter house standard v3:** your architecture, rebuilt from real code. It includes one interceptor +
   `ApiRequest` for API calls, a session manager, secure storage, safe routing, and complete core, feature and
   test code in `reference/` files next to the skill (opened only when needed). That code passes
-  `flutter analyze` and 39 tests on Riverpod 2 and 3.
+  `flutter analyze` and 39 tests on Riverpod 2 and 3. Agents read a 23 KB core before planning and open the
+  standard's topic files only for the areas a task touches.
 - **Plans that show how they work:** three diagrams (plan flow, file map, runtime flow) and How / Why /
   Check under every task, so you see the approach before you approve.
 - **Your rules built in:** the 11-section `implementation_plan.md`, live status, gap analysis, build
@@ -67,7 +83,9 @@ nothing to detect yet.
 ## Use it
 | Claude Code | Antigravity / Gemini | What happens |
 |---|---|---|
-| `/aidlc analyze` | "analyze this project" | Project analysis → `aidlc-docs/project-profile.md` |
+| `/aidlc analyze` | "analyze this project" | Project analysis → `aidlc-docs/project-profile.md`, then the architecture choice |
+| `/aidlc verify` | "verify the plan" · "check for hallucinations" | Check that everything the plan relies on really exists |
+| `/aidlc architecture` | "keep my architecture" · "use the AI-DLC architecture" | Choose again: your architecture, AI-DLC's, or a mix |
 | `/aidlc new-project <idea>` | "new project: <idea>" | Full inception with business and integration plans |
 | `/aidlc feature <what>` | "new feature: <what>" | Questions → requirements → integration plan → implementation plan |
 | `/aidlc bugfix <what>` | "fix bug: <what>" | Triage → root cause → bug-fix plan |
@@ -83,21 +101,23 @@ For lessons: **approve lessons**, `approve L-12 L-13, reject L-14`, or `edit L-1
 ## What's inside
 ```
 aidlc-kit/
-├── install.sh · init-project.sh · remove-project.sh · uninstall.sh · brain.sh · tokens.sh · VERSION
+├── install.sh · init-project.sh · remove-project.sh · uninstall.sh · brain.sh · tokens.sh · verify-plan.sh · VERSION
 ├── README.md · GUIDE.md · CHANGELOG.md · FLUTTER-STANDARD-V3-ANALYSIS.md
 ├── pack/                       → copied into each project
 │   ├── AGENTS.md · CLAUDE.md · GEMINI.md          entry blocks for each agent
 │   └── .agents/
-│       ├── rules/              00-aidlc-core · 10-quality-gates · 30-learning · 40-token-efficiency (always on)
+│       ├── rules/              00-aidlc-core · 10-quality-gates · 30-learning · 40-token-efficiency
+│       │                       50-anti-hallucination (always on)
 │       ├── skills/             project-analysis · aidlc-new-project · aidlc-feature · aidlc-bugfix · aidlc-construction
 │       │                       aidlc-release · aidlc-think · aidlc-reflect · aidlc-research · aidlc-prompt
-│       └── templates/          23 templates (plans, reports, brain, research, question bank, …)
+│       │                       aidlc-anti-hallucination
+│       └── templates/          24 templates (plans, reports, brain, research, question bank, …)
 ├── standards/                  flutter (v3 + reference/ code) · android · ios · generic → project-architecture skill + 20-architecture rule
-├── brain/                      shared-brain starter: 27 verified lessons (updates refresh the ones you never edited)
-├── claude/                     Claude Code: /aidlc · aidlc-reviewer · hooks (plan gate, session, auto-format, learning hint) · doctor
+├── brain/                      shared-brain starter: 28 verified lessons (updates refresh the ones you never edited)
+├── claude/                     Claude Code: /aidlc · aidlc-reviewer · hooks (plan gate, plan check, session, auto-format, learning hint) · doctor
 ├── global/                     plan-first rules for ~/.claude/CLAUDE.md and ~/.gemini/GEMINI.md
 ├── lib/kit.sh                  shared script helpers
-└── tests/                      run-tests.sh (320 checks) · flutter-standard-check.sh (compiles the Flutter standard)
+└── tests/                      run-tests.sh (432 checks) · flutter-standard-check.sh (compiles the Flutter standard)
 ```
 
 ## Settings (`~/.aidlc-kit/config` or environment variables)
@@ -117,7 +137,8 @@ cat ~/.aidlc-kit/VERSION                                   # the kit on this mac
 cat ~/StudioProjects/MyApp/.agents/.aidlc-version          # the pack in a project (version + standard)
 ```
 
-**Check that everything works** (machine and project; it says when a project's pack is older than the kit).
+**Check that everything works** (machine and project; it says when a project's pack is older than the kit,
+and lists finished work items without their test, review or reflection report).
 In Claude Code: `/aidlc doctor`.
 ```bash
 bash ~/.aidlc-kit/claude/bin/doctor.sh ~/StudioProjects/MyApp

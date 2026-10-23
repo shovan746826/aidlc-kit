@@ -145,3 +145,16 @@ is_governance() {
   esac
   return 1
 }
+
+# is_kit_owned <relative-path> <file> → the kit's own files in a project: rules and skills with the
+# "aidlc-kit:managed" marker (replaced on every kit update) and the read-only copy of the shared brain.
+is_kit_owned() {
+  case "$1" in
+    .agents/brain/shared/*) return 0 ;;
+    .agents/*) head -n 8 "$2" 2>/dev/null | grep -q 'aidlc-kit:managed' ;;
+    *) return 1 ;;
+  esac
+}
+
+# is_free_doc <relative-path> <file> → a planning file that never needs a plan: governance, except the kit's own files.
+is_free_doc() { is_governance "$1" && ! is_kit_owned "$1" "$2"; }

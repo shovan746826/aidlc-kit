@@ -2,7 +2,8 @@
 
 > Stage NP5 / F3 · Status: DRAFT | APPROVED <date-time> · Work item: <id> · Inputs: requirements, `questions.md`
 > New project: fill sections 1–6 and 8–10 (section 7 when an app already exists).
-> Feature in an existing app: section 7 is the most important; fill 3–5 for every external call it makes.
+> Feature in an existing app: section 7 is the most important; fill 3–5 for every external call it makes;
+> at full depth also §11 Design (a new project designs in `05-architecture.md`).
 
 ## 1. Summary
 - <which systems connect, the riskiest integration, mock-first or not>
@@ -82,6 +83,30 @@ sequenceDiagram
 ## 10. Open items
 - …
 
+## 11. Design (full depth)
+### 11.1 Data model
+| Entity | Fields (type) | Relations | Stored where (API · local database · preferences) | Migration and its rollback |
+|---|---|---|---|---|
+
+### 11.2 States and flows
+Multi-step or asynchronous flows (loading, sync, payment, upload) as a state diagram:
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Loading: open the screen
+  Loading --> Loaded: data
+  Loading --> Failed: error or timeout
+  Failed --> Loading: retry
+```
+
+### 11.3 How each NFR is met and verified
+| NFR | Design decision | Verified by (test · measurement · manual check) |
+|---|---|---|
+
+### 11.4 Compatibility and rollout
+- Old app versions against the new backend · data migration and its rollback · feature flag · staged rollout
+
 ---
 **Ready to approve?** ☐ every external call has a contract, error handling and a test approach ☐ no secret
 in code ☐ environments defined ☐ internal touch points listed with paths ☐ no [OPEN-BLOCKING] item
+☐ full depth: §11 filled (data model, states, a check for every NFR, rollout)

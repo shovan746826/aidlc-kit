@@ -30,3 +30,4 @@ ec399a16f1117ad91ebd75d6332a51ad2aec8784e9ac8d8e041ed0df9eff8ab5  S-022-asyncval
 8f55ded935979294c2a3822b2dbf3e24c96cdb2d9093c1f45dd83a623548cbd7  S-025-statenotifier-state-in-tests.md  v2.1.0
 f7a273e08523299b16792017e934b94af316211a4de0660549a8de8a7c8df2be  S-026-context-is-the-token-cost.md  v2.3.0
 b62f9a3b5734d05b910f43056f06c9c7333a647a6f483f49a863e6fe8f0c236b  S-027-quiet-test-output.md  v2.3.0
+fb11e46b2a784a7e80e14d50874ab225dcd397b55859e9b00b56517e901a420e  S-028-verify-package-names.md  v2.7.0

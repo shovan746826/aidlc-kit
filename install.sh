@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # AI-DLC kit: install once per machine.
 #   • copies the kit to ~/.aidlc-kit (used by init-project.sh and the hooks)
-#   • Claude Code: /aidlc command, aidlc-reviewer agent, 4 hooks in settings.json, plan-first rule in CLAUDE.md
+#   • Claude Code: /aidlc command, aidlc-reviewer agent, 5 hooks in settings.json, plan-first rule in CLAUDE.md
 #   • Antigravity / Gemini: plan-first rule in ~/.gemini/GEMINI.md
 # Every file it changes is backed up first to ~/.aidlc-kit/backups/<time>/. Safe to run again (updates).
 set -euo pipefail
@@ -48,7 +48,7 @@ say ""
 # 1. Kit home ------------------------------------------------------------------------------------------
 mkdir -p "$KIT_HOME"
 if [ "$(cd "$KIT_HOME" && pwd)" != "$SRC" ]; then
-  for item in VERSION README.md GUIDE.md CHANGELOG.md FLUTTER-STANDARD-V3-ANALYSIS.md install.sh init-project.sh uninstall.sh remove-project.sh brain.sh tokens.sh lib pack standards claude global tests; do
+  for item in VERSION README.md GUIDE.md CHANGELOG.md FLUTTER-STANDARD-V3-ANALYSIS.md install.sh init-project.sh uninstall.sh remove-project.sh brain.sh tokens.sh verify-plan.sh lib pack standards claude global tests; do
     rm -rf "${KIT_HOME:?}/$item"
     if [ -e "$SRC/$item" ]; then cp -R "$SRC/$item" "$KIT_HOME/$item"; fi
   done
@@ -151,6 +151,18 @@ if [ ! -f "$BRAIN/INDEX.md" ]; then
   say "✓ shared brain: $(grep -c '^- \[' "$BRAIN/INDEX.md") starter lessons in $BRAIN"
 else
   added=0; updated=""; kept_edits=""; id_taken=""
+  # Kits before 2.7 named a 6 KB budget in the index header. Only that line of the kit's own text changes.
+  old_head='This is a read-only copy in each project; the source is `~/.aidlc-kit/brain/`. Keep under 6 KB.'
+  new_head="$(grep -m 1 -F 'This is a read-only copy in each project;' "$SRC/brain/INDEX.md" || true)"
+  if [ -n "$new_head" ] && grep -qxF "$old_head" "$BRAIN/INDEX.md"; then
+    backup_to "$BRAIN/INDEX.md" "$BACKUP/brain/INDEX.md"
+    tmp="$(mktemp)"
+    OLD="$old_head" NEW="$new_head" awk '$0 == ENVIRON["OLD"] { print ENVIRON["NEW"]; next } { print }' \
+      "$BRAIN/INDEX.md" > "$tmp"
+    cat "$tmp" > "$BRAIN/INDEX.md"
+    rm -f "$tmp"
+    say "✓ shared brain index: the budget line now says 8 KB"
+  fi
   mkdir -p "$BRAIN/lessons"
   for lesson in "$SRC"/brain/lessons/*.md; do
     name="$(basename "$lesson")"; id="$(printf '%s' "$name" | cut -d- -f1-2)"; mine="$BRAIN/lessons/$name"
@@ -208,7 +220,7 @@ if [ "$DO_CLAUDE" = 1 ]; then
     settings="$CLAUDE_DIR/settings.json"
     backup_to "$settings" "$BACKUP/claude/settings.json"
     settings_hooks add "$settings" "$KIT_HOME/claude/hooks"
-    say "✓ Claude Code hooks in $settings: plan gate · session start · auto-format (new files) · learning hint"
+    say "✓ Claude Code hooks in $settings: plan gate · plan check · session start · auto-format (new files) · learning hint"
   fi
 
   tmp="$(mktemp)"

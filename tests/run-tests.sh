@@ -73,14 +73,27 @@ done
 for s in flutter android ios generic; do
   total=$(( $(wc -c < "$KIT/pack/AGENTS.md") + $(wc -c < "$KIT/pack/.agents/rules/00-aidlc-core.md") \
           + $(wc -c < "$KIT/pack/.agents/rules/10-quality-gates.md") + $(wc -c < "$KIT/pack/.agents/rules/30-learning.md") \
-          + $(wc -c < "$KIT/pack/.agents/rules/40-token-efficiency.md") + $(wc -c < "$KIT/standards/$s/architecture-rules.md") ))
+          + $(wc -c < "$KIT/pack/.agents/rules/40-token-efficiency.md") + $(wc -c < "$KIT/pack/.agents/rules/50-anti-hallucination.md") \
+          + $(wc -c < "$KIT/standards/$s/architecture-rules.md") ))
   if [ "$total" -lt 30000 ]; then ok "always-on text for $s: $total bytes (< 30,000)"; else bad "always-on text for $s too big: $total bytes"; fi
 done
 
 n="$(ls "$KIT/pack/.agents/templates/"*.md | wc -l | tr -d ' ')"
-expect_rc "23 templates" 23 "$n"
+expect_rc "24 templates" 24 "$n"
 n="$(ls -d "$KIT"/pack/.agents/skills/*/ | wc -l | tr -d ' ')"
-expect_rc "10 workflow skills in the pack" 10 "$n"
+expect_rc "11 workflow skills in the pack" 11 "$n"
+PA="$KIT/pack/.agents/skills/project-analysis/SKILL.md"; AS="$KIT/pack/.agents/templates/architecture-standard.md"
+check "analysis ends with the architecture choice (A5: yours, AI-DLC, mix)" sh -c \
+  "grep -q '^## A5. Architecture choice' '$PA' && grep -q 'A) Your architecture' '$PA' && grep -q 'B) The AI-DLC standard' '$PA' && grep -q 'C) Mix' '$PA'"
+check "A5 writes the standard from the template, an ADR and profile section 15" sh -c \
+  "grep -q 'architecture-standard.md' '$PA' && grep -q 'decision-record.md' '$PA' && grep -q 'profile section 15' '$PA'"
+check "architecture-standard template: skill frontmatter, one-line description, 'generated' marker" sh -c \
+  "sed -n '2p' '$AS' | grep -qx 'name: project-architecture' && sed -n '3p' '$AS' | grep -q '^description: [^>|]' && grep -q 'aidlc-kit:standard=generated' '$AS'"
+check "... with the sections the workflow needs (checklist, placement, commands, testing)" sh -c \
+  "grep -q '^## 18. New-feature checklist' '$AS' && grep -q '^## 19. Placement rules' '$AS' && grep -q '^## 20\\.' '$AS' && grep -q '^## 21. Testing standard' '$AS'"
+check "profile template has section 15 Architecture choice" grep -q '^## 15. Architecture choice' "$KIT/pack/.agents/templates/project-profile.md"
+check "routing table and /aidlc know the architecture choice" sh -c \
+  "grep -q '^| Architecture choice |' '$KIT/pack/.agents/rules/00-aidlc-core.md' && grep -q '^| \\\`architecture\\\` |' '$KIT/claude/skills/aidlc/SKILL.md'"
 size="$(wc -c < "$KIT/pack/.agents/rules/40-token-efficiency.md" | tr -d ' ')"
 [ "$size" -lt 3000 ] && ok "the token rule itself stays lean ($size bytes < 3,000)" || bad "the token rule is too long: $size bytes"
 QG="$KIT/pack/.agents/rules/10-quality-gates.md"; CON="$KIT/pack/.agents/skills/aidlc-construction/SKILL.md"
@@ -100,11 +113,18 @@ tasks="$(sed -n '/^## 14\./,/^## 15\./p' "$IP" | grep -c '\*\*\[PENDING\]\*\* T[
 hows="$(sed -n '/^## 14\./,/^## 15\./p' "$IP" | grep -c '^  - How:')"
 [ "$tasks" -ge 9 ] && [ "$tasks" = "$hows" ] && ok "every task in the plan template has How / Why / Check ($tasks tasks)" \
   || bad "every task in the plan template has How / Why / Check ($tasks tasks, $hows How lines)"
+check "plan templates have the Facts and assumptions table and the Verification line" sh -c \
+  "grep -q '^## Facts and assumptions' '$IP' && grep -q '^## Facts and assumptions' '$BP' && grep -q '^- Verification:' '$IP' && grep -q '^- Verification:' '$BP'"
+check "light plans: one document, one gate, one diagram (template note + feature skill)" sh -c "grep -q 'Light plan (light mode' '$IP' && grep -q 'skip F2 and F3' '$KIT/pack/.agents/skills/aidlc-feature/SKILL.md'"
+TE="$KIT/pack/.agents/rules/40-token-efficiency.md"
+check "token rule: parallel reads, topic files, templates filled without their instruction comments" sh -c "grep -q 'Batch independent reads' '$TE' && grep -q 'open a topic file' '$TE' && grep -q 'without their instruction comments' '$TE'"
+check "size budgets: project profile about 10 KB, a project's own standard about 20 KB" sh -c "grep -q '10 KB' '$KIT/pack/.agents/templates/project-profile.md' && grep -q '20 KB' '$KIT/pack/.agents/templates/architecture-standard.md'"
+check "construction records a git baseline at C1" contains "$KIT/pack/.agents/skills/aidlc-construction/SKILL.md" "verify-plan.sh <plan> --baseline"
 check "bug-fix plan template: before/after diagram and How under its tasks" sh -c "grep -q '^\`\`\`mermaid' '$BP' && grep -q 'subgraph After' '$BP' && [ \$(grep -c '^  - How:' '$BP') -ge 2 ]"
 n="$(ls "$KIT"/brain/lessons/*.md | wc -l | tr -d ' ')"
 [ "$n" -ge 25 ] && ok "shared-brain starter has $n lessons" || bad "shared-brain starter has only $n lessons"
 size="$(wc -c < "$KIT/brain/INDEX.md" | tr -d ' ')"
-[ "$size" -le 6144 ] && ok "shared-brain index within budget ($size / 6144 bytes)" || bad "shared-brain index over budget ($size bytes)"
+[ "$size" -le 8192 ] && ok "shared-brain index within budget ($size / 8192 bytes)" || bad "shared-brain index over budget ($size bytes)"
 mkdir -p "$TMP/starter-home"; cp -R "$KIT/brain" "$TMP/starter-home/brain"; mkdir -p "$TMP/starter-project/aidlc-docs"
 AIDLC_KIT_HOME="$TMP/starter-home" bash "$KIT/brain.sh" lint "$TMP/starter-project" >"$TMP/lint.out" 2>&1
 expect_rc "shared-brain starter passes brain.sh lint" 0 "$?"
@@ -117,13 +137,26 @@ done
   || bad "add these lines to lib/starter-lessons.sha256:$missing_sha"
 n="$(cat "$KIT/standards/flutter/SKILL.md" "$KIT"/standards/flutter/reference/*.md | grep -c '^```dart')"
 [ "$n" -ge 70 ] && ok "Flutter standard v3 contains $n Dart code blocks (compile-checked by tests/flutter-standard-check.sh)" || bad "Flutter standard has only $n Dart code blocks"
-for r in core feature-items feature-sign-in tests; do
+for r in core feature-items feature-sign-in tests patterns routing-api app-shell build-test-security adopting-v3; do
   [ -f "$KIT/standards/flutter/reference/$r.md" ] || bad "missing Flutter reference file: $r.md"
 done
 n="$(grep -c '^// lib/\|^// test/' "$KIT/standards/flutter/SKILL.md")"
 expect_rc "Flutter SKILL.md has no whole-file code (it lives in reference/)" 0 "$n"
 size="$(wc -c < "$KIT/standards/flutter/SKILL.md" | tr -d ' ')"
-[ "$size" -lt 60000 ] && ok "Flutter SKILL.md (read before every plan) is $size bytes (< 60,000)" || bad "Flutter SKILL.md is too big to read before every plan: $size bytes"
+[ "$size" -lt 24000 ] && ok "Flutter SKILL.md core (read before every plan) is $size bytes (< 24,000; topic files on demand)" || bad "Flutter SKILL.md core is too big to read before every plan: $size bytes"
+FS="$KIT/standards/flutter/SKILL.md"; heads_ok=1
+for n in $(seq 1 24); do grep -q "^## $n\. " "$FS" || heads_ok=0; done
+[ "$heads_ok" = 1 ] && ok "Flutter SKILL.md keeps every section heading 1–24 (references like §9 still resolve)" || bad "Flutter SKILL.md lost a section heading"
+topic_ok=1
+for t in patterns routing-api app-shell build-test-security adopting-v3; do
+  tf="$KIT/standards/flutter/reference/$t.md"
+  grep -q "^→ \`reference/$t.md\`" "$FS" || topic_ok=0
+  while IFS= read -r h; do grep -qxF -- "$h" "$FS" || topic_ok=0; done <<EOF
+$(grep '^## [0-9]' "$tf")
+EOF
+done
+[ "$topic_ok" = 1 ] && ok "each Flutter topic file holds whole sections, and SKILL.md names it under the same headings" || bad "Flutter topic files and SKILL.md do not match"
+check "the always-on Flutter rule no longer asks to read sections 1–24 before planning" sh -c "! grep -q '1–24' '$KIT/standards/flutter/architecture-rules.md'"
 for s in flutter android ios generic; do
   sed -n '2,4p' "$KIT/standards/$s/SKILL.md" | grep -q '^description: [^>|]' || bad "standards/$s/SKILL.md: description must be one line"
 done
@@ -156,7 +189,7 @@ check ".gitignore ignores backups" contains "$P/.gitignore" ".agents/.backup/"
 check "version file" contains "$P/.agents/.aidlc-version" "standard=flutter"
 REFD=".agents/skills/project-architecture/reference"
 ref_ok=1
-for r in core feature-items feature-sign-in tests; do
+for r in core feature-items feature-sign-in tests patterns routing-api app-shell build-test-security adopting-v3; do
   cmp -s "$KIT/standards/flutter/reference/$r.md" "$P/$REFD/$r.md" || ref_ok=0
 done
 [ "$ref_ok" = 1 ] && ok "the Flutter reference files are installed with the standard" || bad "the Flutter reference files are installed with the standard"
@@ -273,6 +306,18 @@ printf '%s\n' "$out" | grep -q 'come from different versions' && ok "doctor warn
   || bad "doctor warns when the skill and 20-architecture.md do not match"
 cat "$TMP/skill-save" > "$P/.agents/skills/project-architecture/SKILL.md"
 for f in INDEX.md inbox.md metrics.md; do check "project brain created: aidlc-docs/brain/$f" test -f "$P/aidlc-docs/brain/$f"; done
+GS="$TMP/own standard"; new_flutter_project "$GS"; bash "$KIT/init-project.sh" "$GS" >/dev/null 2>&1
+mkdir -p "$GS/.agents/archive/20261023"; mv "$GS/.agents/skills/project-architecture/reference" "$GS/.agents/archive/20261023/"
+sed 's/<Project>/Demo/g' "$KIT/pack/.agents/templates/architecture-standard.md" > "$GS/.agents/skills/project-architecture/SKILL.md"
+printf -- '---\ntrigger: always_on\ndescription: Demo architecture hard rules.\n---\n<!-- aidlc-kit:standard=generated · project-owned -->\n# Architecture Rules: Demo\n1. Use GetX for state.\n' > "$GS/.agents/rules/20-architecture.md"
+out="$(bash "$KIT/init-project.sh" "$GS" 2>&1)"
+check "init keeps a project's own standard written by A5" contains "$GS/.agents/skills/project-architecture/SKILL.md" "# Demo Architecture Standard"
+check "... and its rules" contains "$GS/.agents/rules/20-architecture.md" "Use GetX for state."
+printf '%s\n' "$out" | grep -q 'different versions' && bad "... with no mismatch warning" || ok "... with no mismatch warning"
+check "... records standard=generated" contains "$GS/.agents/.aidlc-version" "standard=generated"
+check "... and adds no kit reference code next to it" test ! -d "$GS/.agents/skills/project-architecture/reference"
+out="$(AIDLC_KIT_HOME="$KIT" bash "$KIT/claude/bin/doctor.sh" "$GS" 2>&1)"
+printf '%s\n' "$out" | grep -q 'different versions' && bad "doctor: no mismatch warning for an A5 standard" || ok "doctor: no mismatch warning for an A5 standard"
 check "shared brain copied into .agents/brain/shared/" test -f "$P/.agents/brain/shared/INDEX.md"
 n="$(ls "$P"/.agents/brain/shared/lessons/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect_rc "shared brain copy has every starter lesson" "$(ls "$KIT"/brain/lessons/*.md | wc -l | tr -d ' ')" "$n"
@@ -302,6 +347,12 @@ expect_rc "closed gate blocks lib/main.dart" 2 "$(gate_rc "$P/lib/main.dart" Wri
 check "block message says 'plan first'" contains "$TMP/gate.err" "No approved plan is active"
 expect_rc "planning file in aidlc-docs/ allowed" 0 "$(gate_rc "$P/aidlc-docs/work/001-feature-x/requirements.md" Write)"
 expect_rc ".agents/ file allowed" 0 "$(gate_rc "$P/.agents/rules/20-architecture.md" Edit)"
+expect_rc "closed gate: a kit-managed rule is blocked" 2 "$(gate_rc "$P/.agents/rules/00-aidlc-core.md" Edit)"
+check "... and the message says it belongs to the kit" contains "$TMP/gate.err" "belongs to the AI-DLC kit"
+expect_rc "closed gate: a kit-managed skill is blocked" 2 "$(gate_rc "$P/.agents/skills/aidlc-feature/SKILL.md" Edit)"
+expect_rc "closed gate: the shared-brain copy is blocked" 2 "$(gate_rc "$P/.agents/brain/shared/INDEX.md" Edit)"
+expect_rc "the project's architecture skill stays free" 0 "$(gate_rc "$P/.agents/skills/project-architecture/SKILL.md" Edit)"
+expect_rc "a new project rule file stays free" 0 "$(gate_rc "$P/.agents/rules/60-project.md" Write)"
 expect_rc "AGENTS.md allowed" 0 "$(gate_rc "$P/AGENTS.md" Edit)"
 expect_rc "nested CLAUDE.md allowed" 0 "$(gate_rc "$P/lib/CLAUDE.md" Write)"
 expect_rc "AIDLC_ENFORCE=off allows everything" 0 "$(gate_rc "$P/lib/main.dart" Write AIDLC_ENFORCE=off)"
@@ -330,6 +381,7 @@ Mentions `lib/outside.dart` outside the files markers (must not count).
 | M1 | `lib/core/config/router_config.dart` | add route `budget` | US-1 |
 | M2 | `lib/main.dart` | move the setup into `lib/core/` and keep `*.dart` formatting | US-1 |
 | M3 | `ios/Podfile`, `ios/Runner/Info.plist` | two paths in one cell | US-1 |
+| M4 | `.agents/rules/10-quality-gates.md` | an approved change to a kit rule | US-1 |
 - `lib/plan_change.dart`: added by PC-1 (it also mentions `lib/not_planned.dart`)
 <!-- aidlc:files:end -->
 EOF
@@ -352,6 +404,8 @@ expect_rc "several paths in one Path cell: first allowed" 0 "$(gate_rc "$P/ios/P
 expect_rc "several paths in one Path cell: second allowed" 0 "$(gate_rc "$P/ios/Runner/Info.plist" Edit)"
 expect_rc "bullet line: its first path is allowed" 0 "$(gate_rc "$P/lib/plan_change.dart" Write)"
 expect_rc "bullet line: a path mentioned later does not count" 2 "$(gate_rc "$P/lib/not_planned.dart" Write)"
+expect_rc "open gate: a kit-managed file listed in the approved plan is allowed" 0 "$(gate_rc "$P/.agents/rules/10-quality-gates.md" Edit)"
+expect_rc "open gate: a kit-managed file the plan does not list is blocked" 2 "$(gate_rc "$P/.agents/rules/30-learning.md" Edit)"
 ( . "$KIT/claude/hooks/lib.sh"; plan_paths "$PLAN" ) > "$TMP/paths.out"
 check "template example rows with <placeholders> are ignored" sh -c "! grep -q '<feature>' '$TMP/paths.out'"
 cp "$PLAN" "$TMP/plan-approved"
@@ -475,7 +529,7 @@ check "v1 flutter-reviewer backed up" sh -c "find '$H/.aidlc-kit/backups' -name 
 check "settings.json is valid JSON" jq empty "$H/.claude/settings.json"
 check "other settings kept" sh -c "jq -e '.model == \"opus\"' '$H/.claude/settings.json'"
 check "user's own hook kept" contains "$H/.claude/settings.json" "echo user-hook"
-for h in plan-gate auto-format session-start learn-hint; do expect_rc "hook $h registered once" 1 "$(hooks_count $h)"; done
+for h in plan-gate auto-format session-start learn-hint plan-check; do expect_rc "hook $h registered once" 1 "$(hooks_count $h)"; done
 check "shared brain installed in ~/.aidlc-kit/brain" test -f "$H/.aidlc-kit/brain/INDEX.md"
 check "brain.sh installed" test -f "$H/.aidlc-kit/brain.sh"
 check "tokens.sh installed and executable" test -x "$H/.aidlc-kit/tokens.sh"
@@ -490,6 +544,7 @@ printf -- '- [S-900](lessons/S-900-mine.md) · rule · any · t · my own shared
 rm -f "$H/.aidlc-kit/brain/lessons/S-025-statenotifier-state-in-tests.md"
 grep -v 'S-025' "$H/.aidlc-kit/brain/INDEX.md" > "$TMP/idx" && cat "$TMP/idx" > "$H/.aidlc-kit/brain/INDEX.md"
 printf '# my old config\nAIDLC_AUTOFORMAT=off\n' > "$H/.aidlc-kit/config"
+sed 's/Keep under 8 KB\./Keep under 6 KB./' "$H/.aidlc-kit/brain/INDEX.md" > "$TMP/idx" && cat "$TMP/idx" > "$H/.aidlc-kit/brain/INDEX.md"
 run_install AIDLC_JSON_TOOL=python3; rc=$?
 expect_rc "second install succeeds (python3 path)" 0 "$rc"
 check "re-install keeps your config values" contains "$H/.aidlc-kit/config" "AIDLC_AUTOFORMAT=off"
@@ -497,6 +552,8 @@ check "re-install adds settings that are new in the kit" contains "$H/.aidlc-kit
 expect_rc "re-install does not add a setting you already have" 1 "$(count_in "$H/.aidlc-kit/config" "AIDLC_AUTOFORMAT=")"
 check "re-install keeps your own shared lessons" contains "$H/.aidlc-kit/brain/INDEX.md" "my own shared lesson"
 check "re-install adds missing starter lessons" test -f "$H/.aidlc-kit/brain/lessons/S-025-statenotifier-state-in-tests.md"
+check "re-install changes the kit's old 6 KB index header line to 8 KB" contains "$H/.aidlc-kit/brain/INDEX.md" "Keep under 8 KB."
+check "... after backing up the old index" sh -c "find '$H/.aidlc-kit/backups' -path '*brain/INDEX.md' | grep -q ."
 # A newer kit (a copy with one more released version of S-003) meets a brain with an untouched old S-003,
 # an edited S-004 and a lesson of yours that took the ID S-005.
 KC="$TMP/kit copy"; cp -R "$KIT" "$KC"; HB="$H/.aidlc-kit/brain"
@@ -507,6 +564,7 @@ sed 's/^helpful: .*/helpful: 4/' "$TMP/old-S-003.md" > "$HB/lessons/$L3"
 sed "/(lessons\/$L3)/s/✓[0-9]* ✗[0-9]*\$/✓4 ✗0/" "$HB/INDEX.md" > "$TMP/idx" && cat "$TMP/idx" > "$HB/INDEX.md"
 printf 'My own note.\n' >> "$HB/lessons/$L4"
 mv "$HB/lessons/$L5" "$HB/lessons/S-005-my-own-lesson.md"
+sed 's/Keep under 8 KB\./Keep under 6 KB (my own words)./' "$HB/INDEX.md" > "$TMP/idx" && cat "$TMP/idx" > "$HB/INDEX.md"
 env -u AIDLC_KIT_HOME HOME="$H" bash "$KC/install.sh" > "$TMP/install3.out" 2>&1
 expect_rc "re-install with a newer kit succeeds" 0 "$?"
 if [ "$(grep -v '^helpful:' "$HB/lessons/$L3")" = "$(grep -v '^helpful:' "$KIT/brain/lessons/$L3")" ]; then
@@ -522,10 +580,11 @@ check "a starter lesson you edited is kept" contains "$HB/lessons/$L4" "My own n
 check "the installer says it kept your edit" contains "$TMP/install3.out" "kept your edited starter lessons: S-004"
 check "a kit lesson is not added when one of yours has its ID" test ! -f "$HB/lessons/$L5"
 check "the installer says why" contains "$TMP/install3.out" "uses the same ID: S-005"
+check "an index header line you edited is kept" contains "$HB/INDEX.md" "Keep under 6 KB (my own words)."
 env -u AIDLC_KIT_HOME HOME="$H" bash "$KC/install.sh" > "$TMP/install4.out" 2>&1
 check "a second run changes no lesson" contains "$TMP/install4.out" "updated: none"
 expect_rc "re-install does not duplicate starter index lines" 1 "$(grep -c 'S-001-riverpod3-legacy-import' "$H/.aidlc-kit/brain/INDEX.md")"
-for h in plan-gate auto-format session-start learn-hint; do expect_rc "after re-install, hook $h still registered once" 1 "$(hooks_count $h)"; done
+for h in plan-gate auto-format session-start learn-hint plan-check; do expect_rc "after re-install, hook $h still registered once" 1 "$(hooks_count $h)"; done
 expect_rc "after re-install, CLAUDE.md block still once" 1 "$(count_in "$H/.claude/CLAUDE.md" "AIDLC:BEGIN")"
 check "settings.json still valid" jq empty "$H/.claude/settings.json"
 
@@ -566,6 +625,37 @@ while IFS= read -r t; do
   [ -f "$KIT/pack/.agents/templates/$t" ] || { missing_tpl=1; bad "template referenced but missing: $t"; }
 done < <(grep -rhoE 'template[s]? `[a-z_-]+\.md`' "$KIT/pack" | sed -E 's/.*`([a-z_-]+\.md)`/\1/' | sort -u)
 [ "$missing_tpl" = 0 ] && ok "every template named in the skills exists"
+stale="$(python3 - "$KIT" <<'PYEOF'
+import os, re, sys
+kit = sys.argv[1]
+rdir = os.path.join(kit, "pack/.agents/rules")
+secs = {f[:2]: set(re.findall(r"^##\s+(\d+)\.", open(os.path.join(rdir, f), encoding="utf-8").read(), re.M)) for f in os.listdir(rdir)}
+steps = {}
+sdir = os.path.join(kit, "pack/.agents/skills")
+for name in os.listdir(sdir):
+    t = open(os.path.join(sdir, name, "SKILL.md"), encoding="utf-8").read()
+    steps[name] = set(re.findall(r"^#+\s+([A-Z]\d+)\b", t, re.M)) | set(re.findall(r"^\|\s*([A-Z]\d+)\b", t, re.M))
+out = []
+for d, _, fs in os.walk(kit):
+    if os.path.relpath(d, kit).split(os.sep)[0] == "tests":
+        continue
+    for f in fs:
+        if not f.endswith((".md", ".sh")) or f == "CHANGELOG.md":
+            continue
+        p = os.path.join(d, f)
+        for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
+            for m in re.finditer(r"\b(00|10|30|40|50)-[a-z-]+(?:\.md)?`?\s*§\s*(\d+)", line):
+                if m.group(2) not in secs.get(m.group(1), set()):
+                    out.append(f"{os.path.relpath(p, kit)}:{i}: {m.group(0)}")
+            for m in re.finditer(r"\b(aidlc-[a-z-]+|project-analysis)`?\s*\(?\b([A-Z])(\d+)(?:\s*[–-]\s*([A-Z]?)(\d+))?", line):
+                s, L, a, _, b = m.groups()
+                if s in steps and any(f"{L}{n}" not in steps[s] for n in ([a] if not b else [a, b])):
+                    out.append(f"{os.path.relpath(p, kit)}:{i}: {m.group(0)}")
+print("\n".join(out))
+PYEOF
+)"
+[ -z "$stale" ] && ok "every \"rule §N\" and skill-step reference points to something that exists" || bad "stale references:
+$stale"
 
 # =====================================================================================================
 section "8. Brain (brain.sh, learning hint, session context)"
@@ -693,7 +783,7 @@ new_repo "$GP" >/dev/null 2>&1
 (cd "$KIT" && gh_env bash install.sh) >"$TMP/step1.out" 2>&1
 expect_rc "step 1: cd aidlc-kit && bash install.sh (new machine: no ~/.claude, no ~/.gemini)" 0 "$?"
 n_hooks="$(grep -o 'aidlc-kit/claude/hooks/[a-z-]*\.sh' "$GH/.claude/settings.json" 2>/dev/null | sort -u | wc -l | tr -d ' ')"
-expect_rc "step 1 registers the 4 hooks in a new settings.json" 4 "$n_hooks"
+expect_rc "step 1 registers the 5 hooks in a new settings.json" 5 "$n_hooks"
 check "step 1 creates ~/.claude/CLAUDE.md with the plan-first rule" contains "$GH/.claude/CLAUDE.md" "AIDLC:BEGIN"
 check "step 1 creates ~/.gemini/GEMINI.md with the plan-first rule" contains "$GH/.gemini/GEMINI.md" "AIDLC:BEGIN"
 check "step 1 prints the commands for steps 2 and 3" contains "$TMP/step1.out" "git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc-docs .gitignore && git commit"
@@ -855,6 +945,296 @@ AIDLC_KIT_HOME="$RK" bash "$RM" "$TMP/loose" >/dev/null 2>&1
 expect_rc "refuses a folder without AI-DLC" 1 "$?"
 HOME="$TMP/fakehome" AIDLC_KIT_HOME="$RK" bash "$RM" "$TMP/fakehome" >/dev/null 2>&1
 expect_rc "refuses the home folder" 1 "$?"
+
+# =====================================================================================================
+section "13. Anti-hallucination (verify-plan.sh and the plan-check hook)"
+VP="$KIT/verify-plan.sh"; PCK="$KIT/claude/hooks/plan-check.sh"
+VA="$TMP/verify app"; new_flutter_project "$VA"; bash "$KIT/init-project.sh" "$VA" >/dev/null 2>&1
+mkdir -p "$VA/lib/features/items" "$VA/lib/core/config" "$VA/aidlc-docs/work/001-feature-items" "$VA/aidlc-docs/brain/lessons"
+printf 'class ItemsController {\n  void fetchMore() {}\n}\n' > "$VA/lib/features/items/items_controller.dart"
+printf '// router\n' > "$VA/lib/core/config/router_config.dart"
+printf -- '---\nid: L-001\n---\n' > "$VA/aidlc-docs/brain/lessons/L-001-x.md"
+(cd "$VA" && $GIT add -A && $GIT commit -qm base) >/dev/null 2>&1
+VPLAN="$VA/aidlc-docs/work/001-feature-items/implementation_plan.md"
+cat > "$VPLAN" <<'EOF'
+# Implementation Plan: 001-feature-items
+> Status: DRAFT
+> Type: change · Covers: US-1
+## Thinking summary
+- Depth: light (paging in one feature)
+- Lessons applied: S-003 (watch the notifier), L-001 (paging)
+## Facts and assumptions
+| # | Claim the plan depends on | Evidence | Status |
+|---|---|---|---|
+| F1 | <e.g. a claim> | <evidence> | <verified> |
+| F2 | `ItemsController.fetchMore` exists | `lib/features/items/items_controller.dart:2` | verified |
+| F3 | A user has at most a few hundred items | the user: "a few hundred" | assumption |
+## 1. Objective
+### US-1: Page through items
+- **AC1:** Given 25 items, when the user scrolls to the end, then the next page loads.
+<!-- aidlc:files:begin -->
+## 3. Files to create
+| # | Path | Purpose | Covers |
+|---|---|---|---|
+| C1 | `lib/features/items/items_screen.dart` | screen | US-1 |
+## 4. Files to modify
+| # | Path | What changes | Covers |
+|---|---|---|---|
+| M1 | `lib/features/items/items_controller.dart` | paging | US-1 |
+| M2 | `lib/core/config/router_config.dart` | route | US-1 |
+<!-- aidlc:files:end -->
+## 12. Test plan
+| Test file | Type | What it proves | AC · NFR |
+|---|---|---|---|
+| `test/features/items/items_controller_test.dart` | unit | paging | US-1 AC1 |
+## 5. Classes and methods affected
+| Class | Method / member | New or changed | Purpose |
+|---|---|---|---|
+| `ItemsController` | `fetchMore()` | changed | paging |
+| `ItemsScreen` | `build` | new | screen |
+EOF
+bash "$VP" "$VPLAN" > "$TMP/vp.out" 2>&1
+expect_rc "a correct plan passes the check" 0 "$?"
+check "... and its assumption is listed for the gate" contains "$TMP/vp.out" "fact F3 is an assumption"
+BPLAN="$VA/aidlc-docs/work/001-feature-items/bugfix_plan.md"
+sed -e 's#`lib/core/config/router_config.dart`#`lib/core/config/router.dart`#' \
+    -e 's#| C1 | `lib/features/items/items_screen.dart`#| C1 | `lib/features/items/items_controller.dart`#' \
+    -e 's#L-001 (paging)#L-001 (paging), S-999 (none), R-004 (none)#' "$VPLAN" > "$BPLAN"
+printf '| `ItemsController` | `loadAll()` | changed | invented member |\n| `BudgetService` | `check` | changed | invented class |\n' >> "$BPLAN"
+python3 - "$BPLAN" <<'PYEOF'
+import sys
+p = sys.argv[1]; s = open(p, encoding="utf-8").read()
+s = s.replace('| F3 | A user has', '| F4 | The API pages by 20 | | verified |\n| F5 | The backend sends `total` | ? | unknown |\n| F3 | A user has')
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+bash "$VP" "$BPLAN" > "$TMP/vp.out" 2>&1
+expect_rc "a plan with invented things fails the check" 1 "$?"
+check "invented file to modify, with the real one suggested" contains "$TMP/vp.out" "does not exist: lib/core/config/router.dart (did you mean: lib/core/config/router_config.dart?)"
+check "a file to create that already exists" contains "$TMP/vp.out" "file to create already exists: lib/features/items/items_controller.dart"
+check "an invented class" contains "$TMP/vp.out" "class not found in the code: BudgetService"
+check "an invented member of a real class" contains "$TMP/vp.out" 'ItemsController has no member "loadAll"'
+check "an invented lesson ID" contains "$TMP/vp.out" "lesson S-999 not found"
+check "an invented research note" contains "$TMP/vp.out" "research note R-004 not found"
+check "a 'verified' fact without evidence" contains "$TMP/vp.out" "fact F4 is marked verified but shows no evidence"
+check "an unknown fact" contains "$TMP/vp.out" "fact F5 is unknown"
+bash "$VP" "$BPLAN" --quick > "$TMP/vp.out" 2>&1
+expect_rc "--quick still fails on invented paths and classes" 1 "$?"
+check "--quick skips the facts table (plans in progress)" sh -c "! grep -q 'fact F5' '$TMP/vp.out'"
+sed 's/^> Status: DRAFT$/> Status: APPROVED 2026-10-23 10:00/' "$BPLAN" > "$TMP/approved.md" && cat "$TMP/approved.md" > "$BPLAN"
+bash "$VP" "$BPLAN" --quick > "$TMP/vp.out" 2>&1
+check "an approved plan no longer checks that files to create are new" sh -c "! grep -q 'already exists' '$TMP/vp.out'"
+out="$(printf '{"tool_input":{"file_path":"%s"}}' "$BPLAN" | AIDLC_KIT_HOME="$KIT" bash "$PCK" 2>&1)"; rc=$?
+expect_rc "hook: a plan with invented things → exit 2 (feedback to Claude)" 2 "$rc"
+printf '%s\n' "$out" | grep -q 'router.dart (did you mean' && ok "hook: the feedback names the invented file and the real one" || bad "hook: the feedback names the invented file and the real one"
+out="$(printf '{"tool_input":{"file_path":"%s"}}' "$VPLAN" | AIDLC_KIT_HOME="$KIT" bash "$PCK" 2>&1)"; rc=$?
+[ "$rc" = 0 ] && [ -z "$out" ] && ok "hook: a correct plan → silent" || bad "hook: a correct plan → silent"
+printf '{"tool_input":{"file_path":"%s"}}' "$VA/lib/core/config/router_config.dart" | AIDLC_KIT_HOME="$KIT" bash "$PCK" >/dev/null 2>&1
+expect_rc "hook: other files are never checked" 0 "$?"
+NPLAN="$VA/aidlc-docs/work/002-feature-markers/implementation_plan.md"; mkdir -p "$(dirname "$NPLAN")"
+grep -v 'aidlc:files:' "$VPLAN" > "$NPLAN"
+bash "$VP" "$NPLAN" > "$TMP/vp.out" 2>&1
+expect_rc "a plan without the aidlc:files markers fails the check" 1 "$?"
+check "... and says why" contains "$TMP/vp.out" "aidlc:files markers missing"
+printf '{"tool_input":{"file_path":"%s"}}' "$NPLAN" | AIDLC_KIT_HOME="$KIT" bash "$PCK" >/dev/null 2>&1
+expect_rc "hook: a plan without the markers → exit 2" 2 "$?"
+grep -v 'aidlc:files:end' "$VPLAN" > "$NPLAN"
+bash "$VP" "$NPLAN" --quick > "$TMP/vp.out" 2>&1
+expect_rc "a plan with only the begin marker fails the check" 1 "$?"
+awk '/aidlc:files:begin/ { print; skip = 1; next } /aidlc:files:end/ { skip = 0 } !skip' "$VPLAN" > "$NPLAN"
+bash "$VP" "$NPLAN" --quick > "$TMP/vp.out" 2>&1
+expect_rc "a plan in progress with an empty file table passes --quick" 0 "$?"
+check "... with a warning" contains "$TMP/vp.out" "no files found between the aidlc:files markers"
+rm -f "$NPLAN"; rmdir "$(dirname "$NPLAN")"
+printf 'class DraftService {\n  void save() {}\n}\n' > "$VA/lib/features/items/draft_service.dart"
+UPLAN="$VA/aidlc-docs/work/003-feature-draft/implementation_plan.md"; mkdir -p "$(dirname "$UPLAN")"
+printf '# Plan\n> Status: DRAFT\n<!-- aidlc:files:begin -->\n## 4. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/features/items/draft_service.dart` | x |\n<!-- aidlc:files:end -->\n## 5. Classes and methods affected\n| Class | Method / member | New or changed | Purpose |\n|---|---|---|---|\n| `DraftService` | `save()` | changed | x |\n| `ItemsController` | `fetchMore()` | changed | x |\n' > "$UPLAN"
+bash "$VP" "$UPLAN" --quick > "$TMP/vp.out" 2>&1
+expect_rc "a class in a file git does not track yet is found (git grep --untracked)" 0 "$?"
+check "... in the same single search as a tracked one" contains "$TMP/vp.out" "2 changed class(es) checked"
+rm -f "$UPLAN" "$VA/lib/features/items/draft_service.dart"; rmdir "$(dirname "$UPLAN")"
+NG="$TMP/nogit app"; mkdir -p "$NG/lib" "$NG/aidlc-docs/work/001-feature-x"
+printf 'class Foo {\n  void bar() {}\n}\n' > "$NG/lib/foo.dart"
+printf '# Plan\n> Status: DRAFT\n<!-- aidlc:files:begin -->\n## 4. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/foo.dart` | x |\n<!-- aidlc:files:end -->\n## 5. Classes and methods affected\n| Class | Method / member | New or changed | Purpose |\n|---|---|---|---|\n| `Foo` | `bar()` | changed | x |\n| `Baz` | `qux()` | changed | x |\n' > "$NG/aidlc-docs/work/001-feature-x/implementation_plan.md"
+if git -C "$NG" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  skip "class search outside git (the test folder is inside a git repository)"
+else
+  bash "$VP" "$NG/aidlc-docs/work/001-feature-x/implementation_plan.md" --quick > "$TMP/vp.out" 2>&1
+  expect_rc "outside git (grep -r): an invented class still fails the check" 1 "$?"
+  check "... the real class is found and the invented one is named" sh -c "grep -q 'class not found in the code: Baz' '$TMP/vp.out' && ! grep -q 'not found in the code: Foo' '$TMP/vp.out'"
+fi
+rm -f "$BPLAN"
+printf '// my own work in progress\n' > "$VA/lib/wip.dart"
+bash "$VP" "$VPLAN" --baseline > "$TMP/vp.out" 2>&1
+expect_rc "--baseline succeeds" 0 "$?"
+check "... and records the file that already had uncommitted changes" sh -c "grep -q 'lib/wip.dart' '$VA/aidlc-docs/work/001-feature-items/git-baseline.txt'"
+report_files() { # report_files <work item folder>: a test report with baseline and verification rows, a PASS review
+  printf '# Test report\n## 1. Baseline\n| Date-time | Check | Command | Result |\n|---|---|---|---|\n| 2026-10-23 10:00 | Tests | flutter test | +3 passed |\n## 3. Verification runs\n| # | Date-time | Command | Result |\n|---|---|---|---|\n| 1 | 2026-10-23 11:00 | flutter test | +4 passed |\n' > "$1/test-report.md"
+  printf '# Review\n> Reviewer: aidlc-reviewer · Verdict: PASS\n' > "$1/review-report.md"
+}
+report_files "$VA/aidlc-docs/work/001-feature-items"
+printf 'class ItemsScreen {}\n' > "$VA/lib/features/items/items_screen.dart"
+printf '// paging\n' >> "$VA/lib/features/items/items_controller.dart"
+printf '// not planned\n' > "$VA/lib/other.dart"
+bash "$VP" "$VPLAN" --done > "$TMP/vp.out" 2>&1
+expect_rc "--done: a file changed outside the plan fails" 1 "$?"
+check "... and is named" contains "$TMP/vp.out" "changed but not in the plan: lib/other.dart"
+rm -f "$VA/lib/other.dart"
+bash "$VP" "$VPLAN" --done > "$TMP/vp.out" 2>&1
+expect_rc "--done: every planned file exists and nothing else changed" 0 "$?"
+check "--done: a file changed before the work item and untouched since is only a warning" contains "$TMP/vp.out" "changed before this work item and untouched since (baseline): lib/wip.dart"
+printf '// changed again\n' >> "$VA/lib/wip.dart"
+bash "$VP" "$VPLAN" --done > "$TMP/vp.out" 2>&1
+expect_rc "--done: a baseline file that changed again fails" 1 "$?"
+check "... and says so" contains "$TMP/vp.out" "changed but not in the plan: lib/wip.dart (it had changes before this work item and changed again)"
+rm -f "$VA/lib/wip.dart"
+printf '\n' >> "$VA/.agents/rules/10-quality-gates.md"
+bash "$VP" "$VPLAN" --done > "$TMP/vp.out" 2>&1
+expect_rc "--done: a changed kit-managed rule counts as an unplanned change" 1 "$?"
+check "... and is named" contains "$TMP/vp.out" "changed but not in the plan: .agents/rules/10-quality-gates.md"
+(cd "$VA" && $GIT checkout -q -- .agents/rules/10-quality-gates.md)
+MR="$TMP/mono repo"; mkdir -p "$MR/apps/mobile/lib" "$MR/apps/mobile/aidlc-docs/work/001-feature-x" "$MR/other"
+printf 'class X {}\n' > "$MR/apps/mobile/lib/x.dart"; printf 'y\n' > "$MR/other/y.txt"
+printf '# Plan\n> Status: APPROVED 2026-10-23 10:00\n<!-- aidlc:files:begin -->\n## 4. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/x.dart` | x |\n<!-- aidlc:files:end -->\n' > "$MR/apps/mobile/aidlc-docs/work/001-feature-x/implementation_plan.md"
+(cd "$MR" && $GIT init -q && $GIT add -A && $GIT commit -qm base) >/dev/null 2>&1
+printf '// changed\n' >> "$MR/apps/mobile/lib/x.dart"; printf 'changed by another team\n' >> "$MR/other/y.txt"
+report_files "$MR/apps/mobile/aidlc-docs/work/001-feature-x"
+bash "$VP" "$MR/apps/mobile/aidlc-docs/work/001-feature-x/implementation_plan.md" --done > "$TMP/vp.out" 2>&1
+expect_rc "--done in a project folder inside a bigger repository: the planned change passes, other folders are ignored" 0 "$?"
+check "... with paths relative to the project folder" sh -c "! grep -q 'apps/mobile' '$TMP/vp.out'"
+
+section "14. Every stage is proven (stages, traceability, open items, construction records)"
+SP="$TMP/stage app"; SW="$SP/aidlc-docs/work/004-feature-budget"; mkdir -p "$SW" "$SP/lib/features/budget"
+printf 'class BudgetController {\n  void save() {}\n}\n' > "$SP/lib/features/budget/budget_controller.dart"
+printf '# AI-DLC Audit Log\n| Date-time | Work item | Stage | Event | Details |\n|---|---|---|---|---|\n| 2026-10-23 10:00 | 004-feature-budget | F3 Integration plan | APPROVED | "approve" |\n' > "$SP/aidlc-docs/audit-log.md"
+cat > "$SW/requirements.md" <<'EOF'
+# Requirements: budget
+> Stage NP4 / F2 · Status: DRAFT · Work item: 004-feature-budget
+### US-1: Set a budget
+- **AC1:** Given no budget, when the user saves 100, then the budget is 100.
+### US-2: Budget alert
+- **AC1:** Given a budget of 100, when spending reaches 100, then an alert is shown.
+| NFR-1 | Performance | the alert appears within 1 s |
+| BR-1 | A budget is greater than 0 | budget form |
+EOF
+printf '# Integration Plan\n> Stage NP5 / F3 · Status: DRAFT · Work item: 004-feature-budget\n| INT-1 | push notifications |\n' > "$SW/integration-plan.md"
+printf '# Questions\n## Open items\n<!-- Remove items once answered. No gate can pass while an [OPEN-BLOCKING] item exists. -->\n- [OPEN-BLOCKING] …\n- [OPEN-BLOCKING] Which push provider?\n' > "$SW/questions.md"
+SPLAN="$SW/implementation_plan.md"
+cat > "$SPLAN" <<'EOF'
+# Implementation Plan: 004-feature-budget
+> Status: DRAFT
+> Type: feature · Covers: US-1, US-2
+## Thinking summary
+- Depth: full (a new feature)
+## Facts and assumptions
+| # | Claim the plan depends on | Evidence | Status |
+|---|---|---|---|
+| F1 | `BudgetController.save` exists | `lib/features/budget/budget_controller.dart:2` | verified |
+## 1. Objective
+Budgets and alerts.
+<!-- aidlc:files:begin -->
+## 4. Files to modify
+| # | Path | What changes | Covers |
+|---|---|---|---|
+| M1 | `lib/features/budget/budget_controller.dart` | save | US-1 |
+<!-- aidlc:files:end -->
+## 12. Test plan
+| Test file | Type | What it proves | AC · NFR |
+|---|---|---|---|
+| `test/budget_controller_test.dart` | unit | saves | US-1 AC1 |
+## 13. Verification
+flutter analyze, flutter test
+## 14. Task plan
+- [ ] ⏳ **[PENDING]** T1 Save the budget (US-1)
+---
+☐ no [OPEN-BLOCKING] question left
+EOF
+(cd "$SP" && $GIT init -q && $GIT add -A && $GIT commit -qm base) >/dev/null 2>&1
+bash "$VP" "$SPLAN" > "$TMP/sp.out" 2>&1
+expect_rc "a plan with gaps in its earlier stages and traceability fails the check" 1 "$?"
+check "... requirements (F2) not approved" contains "$TMP/sp.out" "stage F2 not approved: requirements.md"
+check "... an APPROVED row in the audit log counts (F3)" contains "$TMP/sp.out" "stage F3: integration-plan.md approved"
+check "... a story without a test" contains "$TMP/sp.out" "US-2 has no test in the test plan"
+check "... a story without a file or task" contains "$TMP/sp.out" "US-2 is not built by any file or task"
+check "... an NFR without a named check" contains "$TMP/sp.out" "NFR-1: name how it is verified"
+check "... business rules and integrations are warnings" sh -c "grep -q '! BR-1 (business rule)' '$TMP/sp.out' && grep -q '! INT-1 (integration)' '$TMP/sp.out'"
+expect_rc "... one open blocking item (comments, placeholders and checklist lines don't count)" 1 "$(grep -c 'open blocking item' "$TMP/sp.out")"
+sed 's/Status: DRAFT/Status: APPROVED 2026-10-23 11:00/' "$SW/requirements.md" > "$TMP/r.md" && cat "$TMP/r.md" > "$SW/requirements.md"
+grep -v 'Which push provider' "$SW/questions.md" > "$TMP/q.md" && cat "$TMP/q.md" > "$SW/questions.md"
+python3 - "$SPLAN" <<'PYEOF'
+import sys
+p = sys.argv[1]; s = open(p, encoding="utf-8").read()
+s = s.replace("| save | US-1 |", "| save; alert through INT-1; BR-1 | US-1, US-2 |")
+s = s.replace("| saves | US-1 AC1 |", "| saves; alerts within 1 s (NFR-1) | US-1 AC1, US-2 AC1 |")
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+bash "$VP" "$SPLAN" > "$TMP/sp.out" 2>&1
+expect_rc "after the fixes the plan passes" 0 "$?"
+check "... with its traceability line" contains "$TMP/sp.out" "traceability: 2 user stories and 1 NFR(s) traced"
+sed 's/^> Status: DRAFT$/> Status: APPROVED 2026-10-23 12:00/' "$SPLAN" > "$TMP/p.md" && cat "$TMP/p.md" > "$SPLAN"
+bash "$VP" "$SPLAN" > "$TMP/sp.out" 2>&1
+check "an approved plan is not checked for earlier stages again" sh -c "! grep -q 'stage F2' '$TMP/sp.out'"
+bash "$VP" "$SPLAN" --done > "$TMP/sp.out" 2>&1
+expect_rc "--done before the work is finished fails" 1 "$?"
+check "... names the open task" contains "$TMP/sp.out" "task not done: T1 Save the budget"
+check "... and the missing reports" sh -c "grep -q 'test-report.md is missing' '$TMP/sp.out' && grep -q 'review-report.md is missing' '$TMP/sp.out'"
+sed 's/^- \[ \] ⏳ \*\*\[PENDING\]\*\* T1/- [x] ✅ **[COMPLETED]** T1/' "$SPLAN" > "$TMP/p.md" && cat "$TMP/p.md" > "$SPLAN"
+printf '# Test report\n## 1. Baseline\n| Date-time | Check | Command | Result |\n|---|---|---|---|\n| 2026-10-23 12:05 | Tests | flutter test | +3 passed |\n## 3. Verification runs\n| # | Date-time | Command | Result |\n|---|---|---|---|\n' > "$SW/test-report.md"
+printf '# Review\n> Reviewer: aidlc-reviewer · Verdict: PASS | PASS WITH FIXES | BLOCKED\n' > "$SW/review-report.md"
+bash "$VP" "$SPLAN" --done > "$TMP/sp.out" 2>&1
+check "--done: a test report without a verification run fails" contains "$TMP/sp.out" "C5: no verification run with a date"
+check "--done: a review with the template's verdict fails" contains "$TMP/sp.out" "review-report.md has no verdict yet"
+printf '| 1 | 2026-10-23 13:00 | flutter test | +5 passed |\n' >> "$SW/test-report.md"
+printf '# Review\n> Reviewer: aidlc-reviewer · Verdict: BLOCKED\n' > "$SW/review-report.md"
+bash "$VP" "$SPLAN" --done > "$TMP/sp.out" 2>&1
+check "--done: a BLOCKED review fails" contains "$TMP/sp.out" "the review verdict is BLOCKED"
+printf '# Review\n> Reviewer: aidlc-reviewer · Verdict: PASS WITH FIXES\n## 4. Findings\n| Severity | Path:line | Issue | Fix | Status |\n|---|---|---|---|---|\n| Blocking | lib/x.dart:3 | y | z | open |\n' > "$SW/review-report.md"
+bash "$VP" "$SPLAN" --done > "$TMP/sp.out" 2>&1
+check "--done: an open Blocking finding fails" contains "$TMP/sp.out" "still has an open Blocking finding"
+sed 's/| open |$/| fixed |/' "$SW/review-report.md" > "$TMP/rr.md" && cat "$TMP/rr.md" > "$SW/review-report.md"
+bash "$VP" "$SPLAN" --done > "$TMP/sp.out" 2>&1
+expect_rc "--done: every stage left its record → passes" 0 "$?"
+check "... and says so" contains "$TMP/sp.out" "every stage left its record"
+check "... a missing git baseline is only a warning" contains "$TMP/sp.out" "no git-baseline.txt"
+LPLAN="$SP/aidlc-docs/work/005-change-label/implementation_plan.md"; mkdir -p "$(dirname "$LPLAN")"
+printf '# Plan\n> Status: DRAFT\n> Type: change\n## Thinking summary\n- Depth: light (one label)\n## 1. Objective\nRename a label.\n<!-- aidlc:files:begin -->\n## 4. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/features/budget/budget_controller.dart` | label |\n<!-- aidlc:files:end -->\n' > "$LPLAN"
+bash "$VP" "$LPLAN" > "$TMP/sp.out" 2>&1
+check "a light plan without its stories in §1 fails" contains "$TMP/sp.out" "light plan: §1 needs the user stories"
+grep -v '^> Type:' "$LPLAN" > "$TMP/p.md" && cat "$TMP/p.md" > "$LPLAN"
+bash "$VP" "$LPLAN" > "$TMP/sp.out" 2>&1
+check "a plan without a Type line fails" contains "$TMP/sp.out" 'the plan header has no "Type:" line'
+FPLAN="$SP/aidlc-docs/work/006-bugfix-total/bugfix_plan.md"; mkdir -p "$(dirname "$FPLAN")"
+printf '# Bug-fix Plan\n> Status: DRAFT\n## 3. Root cause\n- Where: `path/to/file:line`\n<!-- aidlc:files:begin -->\n## 6. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/features/budget/budget_controller.dart` | guard |\n<!-- aidlc:files:end -->\n' > "$FPLAN"
+bash "$VP" "$FPLAN" > "$TMP/sp.out" 2>&1
+check "a bug fix whose root cause has no path:line fails" contains "$TMP/sp.out" "Root cause needs path:line evidence"
+sed 's#`path/to/file:line`#`lib/features/budget/budget_controller.dart:2`#' "$FPLAN" > "$TMP/p.md" && cat "$TMP/p.md" > "$FPLAN"
+bash "$VP" "$FPLAN" > "$TMP/sp.out" 2>&1
+check "... and passes with it" contains "$TMP/sp.out" "the root cause cites path:line"
+mkdir -p "$SP/aidlc-docs/project"; printf '# Requirements\n> Stage NP4 · Status: DRAFT\n' > "$SP/aidlc-docs/project/03-requirements.md"
+XPLAN="$SP/aidlc-docs/work/001-setup-project-scaffold/implementation_plan.md"; mkdir -p "$(dirname "$XPLAN")"
+printf '# Plan\n> Status: DRAFT\n> Type: setup\n<!-- aidlc:files:begin -->\n## 3. Files to create\n| # | Path | Purpose |\n|---|---|---|\n| C1 | `lib/main.dart` | entry |\n<!-- aidlc:files:end -->\n' > "$XPLAN"
+bash "$VP" "$XPLAN" > "$TMP/sp.out" 2>&1
+check "a scaffold plan before the project documents are approved fails" sh -c "grep -q 'stage NP4 missing or not approved' '$TMP/sp.out' && grep -q 'stage NP6 missing or not approved' '$TMP/sp.out'"
+DW="$VA/aidlc-docs/work/005-feature-done"; mkdir -p "$DW"
+printf '# Plan\n> Status: COMPLETED 2026-10-23 12:00\n' > "$DW/implementation_plan.md"; printf 'x\n' > "$DW/test-report.md"; printf 'x\n' > "$DW/reflection.md"
+out="$(AIDLC_KIT_HOME="$KIT" bash "$KIT/claude/bin/doctor.sh" "$VA" 2>&1)"
+printf '%s\n' "$out" | grep -q 'without the record of a stage: 005-feature-done/review-report.md' \
+  && ok "doctor: a completed work item without its review report is listed" || bad "doctor: a completed work item without its review report is listed"
+printf 'x\n' > "$DW/review-report.md"
+out="$(AIDLC_KIT_HOME="$KIT" bash "$KIT/claude/bin/doctor.sh" "$VA" 2>&1)"
+printf '%s\n' "$out" | grep -q 'process audit: 1 completed work item' \
+  && ok "doctor: the process audit passes when every record is there" || bad "doctor: the process audit passes when every record is there"
+rm -f "$DW/implementation_plan.md" "$DW/test-report.md" "$DW/reflection.md" "$DW/review-report.md"; rmdir "$DW"
+CS="$KIT/pack/.agents"
+check "core rule: after approval the document's Status becomes APPROVED" contains "$CS/rules/00-aidlc-core.md" "set the document's Status line to"
+check "integration plan: a design section for full depth" contains "$CS/templates/integration-plan.md" "## 11. Design (full depth)"
+check "construction: logic is built test first" contains "$CS/skills/aidlc-construction/SKILL.md" "Logic is built test first"
+check "plan template: an end-to-end check" contains "$CS/templates/implementation_plan.md" "**End-to-end check:**"
+check "delivery plan: shared contracts between units" contains "$CS/templates/delivery-plan.md" "### 3.1 Shared contracts"
+check "new project: a milestone check" contains "$CS/skills/aidlc-new-project/SKILL.md" "**Milestone check:**"
+check "research: spikes" contains "$CS/skills/aidlc-research/SKILL.md" "## Spike (when the docs can't settle it)"
+check "bug fix: what must not change" contains "$CS/templates/bugfix_plan.md" "- Must not change:"
+check "reviewer: only real gaps" contains "$KIT/claude/agents/aidlc-reviewer.md" "**Scope:** report only what affects correctness"
+check "release: web and backend deploys, rollout gates" sh -c "grep -q 'Web or backend' '$CS/skills/aidlc-release/SKILL.md' && grep -q 'with gates' '$CS/skills/aidlc-release/SKILL.md'"
 
 # =====================================================================================================
 printf '\nResult: %d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"

@@ -8,8 +8,9 @@ description: Analyze an existing codebase and write aidlc-docs/project-profile.m
 
 **Goal:** understand the project well enough that every later plan is right, without guessing.
 **Output:** `aidlc-docs/project-profile.md` (template: `.agents/templates/project-profile.md`).
-This skill only READS the project and writes inside `aidlc-docs/` (plus, for a generic standard, the
-project's architecture skill and rules in `.agents/`, see A4). It never changes code, config or dependencies.
+This skill only READS the project and writes inside `aidlc-docs/` (plus the project's architecture skill
+and rules in `.agents/`: A4 for a generic standard, A5 after the user's architecture choice). It never changes
+code, config or dependencies.
 
 | Stage | What | Output |
 |---|---|---|
@@ -17,6 +18,7 @@ project's architecture skill and rules in `.agents/`, see A4). It never changes 
 | A2 | Map structure, compare with the standard, feature registry | notes |
 | A3 | Dependencies, configuration, tests, hotspots | notes |
 | A4 | Verification commands + baseline → write the profile | `project-profile.md` → **gate** |
+| A5 | Architecture choice: your architecture, the AI-DLC standard, or a mix | the project's standard → **gate** |
 
 Before you start: set the state file to `mode: analysis`, `stage: A1 Detect`, and tell the user what you
 are going to read (one line).
@@ -82,14 +84,66 @@ are going to read (one line).
 5. Brain: add an inbox row for each surprising finding that would help future work (trigger: surprise,
    evidence: counts and paths). They become lessons after the user's batch approval.
 
+## A5. Architecture choice
+**When:** after the A4 gate, the first time the project is analyzed (profile section 15 is empty). Later only
+when the user asks (`/aidlc architecture`, "change the architecture", "keep my architecture", "use the AI-DLC
+architecture"), or when this analysis finds that the code no longer follows the chosen standard: then ask
+whether to keep the choice. New projects choose in `aidlc-new-project` NP6 instead.
+
+1. **Compare**, one row per area, with evidence (`path:line`): architecture and folders · API calling · state
+   management · routing · storage and session · error handling and user feedback · dependency injection ·
+   design system · testing. Columns: this project today · the AI-DLC standard for the stack
+   (`~/.aidlc-kit/standards/<stack>/SKILL.md`, or the installed copy) · risks found (profile §7) · ★.
+   ★ rules: state management, folder layout and dependency injection → keep yours unless they cause real
+   problems (changing them in a working app is expensive); an area with security or crash risks (tokens in
+   logs, force-unwrapped responses, keys in source) → take AI-DLC's; otherwise keep what is consistent.
+   A generic project has no kit standard: only A is possible (generated as in A4.4).
+2. **Ask** (question protocol, `00-aidlc-core.md` §4):
+   ```
+   Q1. Which architecture should AI-DLC follow in this project?  (decides every later plan)
+       A) Your architecture: AI-DLC writes your standard from your code
+       B) The AI-DLC standard (<stack>): new code follows it; old code changes only through planned work items
+       C) Mix: choose per area
+   ```
+   Put the ★ on the option the comparison supports, with the reason. For C, ask one question per area
+   ("API calling: A) keep yours  B) take AI-DLC's ★ …"). Record every question and answer in
+   `aidlc-docs/project/questions.md` (create it if missing).
+3. **Gate** (`00-aidlc-core.md` §5): the choice, the list of `.agents/` files that will change, and the ADR
+   draft. The code never changes in this stage.
+4. **Apply** after the approval (only `.agents/` and `aidlc-docs/` change):
+   - **A, your architecture:**
+     - The architecture skill is already the project's own (no `aidlc-kit:standard=` marker, or
+       `generated`): keep its text. Add under its frontmatter the marker line
+       `<!-- aidlc-kit:standard=generated · the project's own standard (architecture choice <date>, ADR-<NNN>) -->`
+       and add, written from the code, any section the workflow needs that is missing (template
+       `architecture-standard.md` §18 new-feature checklist, §19 placement rules, §20 commands, §21 testing).
+     - The skill is a kit standard or the placeholder: write `.agents/skills/project-architecture/SKILL.md`
+       from template `architecture-standard.md`, every section from the code with `path:line` examples. Move
+       the kit's copy and its `reference/` folder to `.agents/archive/<YYYYMMDD>/`.
+     - Rewrite `.agents/rules/20-architecture.md` as the template's last comment describes: frontmatter
+       `trigger: always_on`, marker `aidlc-kit:standard=generated`, 10–20 short rules taken from the standard.
+   - **B, the AI-DLC standard:** with the user's OK run
+     `bash ~/.aidlc-kit/init-project.sh "<project root>" --update-architecture` (the project's own files are
+     archived, kit-made ones backed up). Profile §7 becomes the migration list, in the order the standard
+     gives (Flutter: §23); suggest the first work item. No kit on this machine → tell the user.
+   - **C, mix:** write the standard from template `architecture-standard.md`. A section kept from the project
+     says `Source: yours` (written from the code); a section taken from AI-DLC says `Source: AI-DLC` (the kit
+     standard's section, shortened to what applies, with the reference files it needs copied into
+     `reference/`). Write `20-architecture.md` from both. Both files carry the marker `generated`.
+   - **Always:** an ADR `aidlc-docs/project/decisions/ADR-<NNN>-architecture-choice.md` (template
+     `decision-record.md`), profile section 15 (decision, date, per-area table, ADR link), an audit-log line
+     with the user's words, and the next action in the state file.
+5. Every later plan follows the chosen standard: its new-feature checklist gives the plan's phases and files.
+
 ## Gate
 Show the gate card (`00-aidlc-core.md` §5): summary, top deviations, top dependency risks, baseline.
 Ask: **"Is this analysis correct? Anything to add or correct?"** Update the state file (`stage: A4 Profile`)
-and wait. After approval: log it in the audit log, set `mode: idle` (or continue with the request that
-started the analysis) and write the next action.
+and wait. After approval: log it in the audit log, then go to A5 when it applies; otherwise set
+`mode: idle` (or continue with the request that started the analysis) and write the next action.
 
 ## Rules
 - Facts only, with paths. Write "unknown" rather than guess.
 - Never change code, configuration or dependencies during the analysis.
 - Never print secrets (keys, tokens, passwords, keystore passwords).
-- Large projects: summarize; put details in tables, not prose.
+- Large projects: summarize; put details in tables, not prose. Keep the profile under about 10 KB (it is read in
+  every session).
