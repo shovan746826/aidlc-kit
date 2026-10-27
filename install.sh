@@ -2,7 +2,8 @@
 # AI-DLC kit: install once per machine.
 #   • copies the kit to ~/.aidlc-kit (used by init-project.sh and the hooks)
 #   • Claude Code: /aidlc command, aidlc-reviewer agent, 5 hooks in settings.json, plan-first rule in CLAUDE.md
-#   • Antigravity / Gemini: plan-first rule in ~/.gemini/GEMINI.md
+#   • Antigravity / Gemini: plan-first rule in ~/.gemini/GEMINI.md; plan gate + plan check hooks in Antigravity's
+#     ~/.gemini/config/hooks.json; plan gate hook in Gemini CLI's ~/.gemini/settings.json
 # Every file it changes is backed up first to ~/.aidlc-kit/backups/<time>/. Safe to run again (updates).
 set -euo pipefail
 
@@ -14,8 +15,8 @@ usage() {
   cat <<'EOF'
 Usage: bash install.sh [--no-claude] [--no-gemini] [--no-hooks]
   --no-claude   skip Claude Code (command, agent, hooks, ~/.claude/CLAUDE.md)
-  --no-gemini   skip the Antigravity / Gemini global rule (~/.gemini/GEMINI.md)
-  --no-hooks    install the Claude Code command and agent, but not the hooks
+  --no-gemini   skip Antigravity / Gemini (the global rule ~/.gemini/GEMINI.md and their hooks)
+  --no-hooks    install everything except the hooks (Claude Code, Antigravity, Gemini CLI)
 Environment: AIDLC_KIT_HOME (default ~/.aidlc-kit) · CLAUDE_CONFIG_DIR (default ~/.claude)
              AIDLC_GEMINI_DIR (default ~/.gemini)
 EOF
@@ -244,6 +245,15 @@ if [ "$DO_GEMINI" = 1 ]; then
   fi
   rm -f "$tmp"
   say "✓ plan-first rule for every project (Antigravity / Gemini): $GEMINI_DIR/GEMINI.md"
+  if [ "$DO_HOOKS" = 1 ]; then
+    mkdir -p "$GEMINI_DIR/config"
+    backup_to "$GEMINI_DIR/config/hooks.json" "$BACKUP/gemini/config/hooks.json"
+    antigravity_hooks add "$GEMINI_DIR/config/hooks.json" "$KIT_HOME/claude/hooks"
+    say "✓ Antigravity hooks in $GEMINI_DIR/config/hooks.json: plan gate · plan check"
+    backup_to "$GEMINI_DIR/settings.json" "$BACKUP/gemini/settings.json"
+    gemini_hooks add "$GEMINI_DIR/settings.json" "$KIT_HOME/claude/hooks"
+    say "✓ Gemini CLI hook in $GEMINI_DIR/settings.json: plan gate"
+  fi
 fi
 
 # 4. Check ---------------------------------------------------------------------------------------------

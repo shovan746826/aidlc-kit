@@ -40,7 +40,9 @@ State: `mode: release`, `type: release`, `work_item: release-<version>`, `stage:
 
 ## R3. Prepare and build
 Through construction: version edits, changelog, release builds. Record artifact paths and sizes. Give the
-user a smoke-test checklist for a real device.
+user a smoke-test checklist for a real device. Backend: migrations run before the new code; a smoke test per
+environment (staging, then production); roll back the code first, then the migration (only when it is
+reversible).
 
 ## R4. Hand-over for publishing
 🚫 Never upload to a store, publish, tag, push or deploy on your own. Give the user the exact steps, or run

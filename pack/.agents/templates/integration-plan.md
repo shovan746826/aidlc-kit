@@ -4,6 +4,8 @@
 > New project: fill sections 1–6 and 8–10 (section 7 when an app already exists).
 > Feature in an existing app: section 7 is the most important; fill 3–5 for every external call it makes;
 > at full depth also §11 Design (a new project designs in `05-architecture.md`).
+> Backend: §3–§5 list the services it calls (payments, email, storage) and the clients that call it (the app),
+> each with its contract.
 
 ## 1. Summary
 - <which systems connect, the riskiest integration, mock-first or not>

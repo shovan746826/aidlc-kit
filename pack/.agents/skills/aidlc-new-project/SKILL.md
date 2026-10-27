@@ -70,10 +70,11 @@ approve?") → gate → approval → audit log + state → next stage.**
 
 ## NP6. Architecture → `05-architecture.md`
 1. The architecture skill `.agents/skills/project-architecture/SKILL.md` was installed by `init-project.sh`
-   for the platform (Flutter house standard, native Android, native iOS, or generic). Read it fully (the
+   for the platform (Flutter house standard, native Android, native iOS, backend, or generic). Read it fully (the
    Flutter standard keeps its complete code in `reference/`: open those files at NP8).
-   If it is the generic placeholder ("NOT GENERATED") but the app is Flutter, Android or iOS, stop: ask the
-   user to approve `bash ~/.aidlc-kit/init-project.sh "<project root>" --standard <flutter|android|ios>`
+   If it is the generic placeholder ("NOT GENERATED") but the project is Flutter, Android, iOS or a backend,
+   stop: ask the user to approve `bash ~/.aidlc-kit/init-project.sh "<project root>" --standard
+   <flutter|android|ios|backend>`
    (it replaces the untouched placeholder), then read the new standard.
 2. **Round 5:** only what the standard leaves open: local storage needs, offline/sync strategy, navigation
    structure (tabs, drawer, stack), design size, fonts, brand colors, dark mode, flavors, organization id.
@@ -82,7 +83,7 @@ approve?") → gate → approval → audit log + state → next stage.**
    feature/module map from the requirements, navigation map, state design, data model, networking,
    security, non-functional design, project-specific values. Write an ADR (template `decision-record.md`)
    for every significant decision or deviation.
-4. If the skill is the **generic** one: write the full project architecture skill and replace
+4. If the skill is the **generic** or **backend** one ("NOT GENERATED"): write the full project architecture skill and replace
    `.agents/rules/20-architecture.md` with this project's hard rules, following the instructions inside
    the generic skill. The user approves them at this gate.
 5. Gate. The user approves the document **and** any change to the architecture skill or rules.

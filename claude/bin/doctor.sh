@@ -54,6 +54,13 @@ for h in plan-gate plan-check session-start auto-format learn-hint; do
 done
 if grep -q "AIDLC:BEGIN" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null; then ok "$CLAUDE_DIR/CLAUDE.md has the plan-first rule"; else warn "$CLAUDE_DIR/CLAUDE.md has no plan-first rule"; fi
 if grep -q "AIDLC:BEGIN" "$GEMINI_DIR/GEMINI.md" 2>/dev/null; then ok "$GEMINI_DIR/GEMINI.md has the plan-first rule (Antigravity / Gemini)"; else warn "$GEMINI_DIR/GEMINI.md has no plan-first rule (Antigravity / Gemini)"; fi
+if grep -q '"aidlc-plan-gate"' "$GEMINI_DIR/config/hooks.json" 2>/dev/null && grep -q '"aidlc-plan-check"' "$GEMINI_DIR/config/hooks.json" 2>/dev/null; then
+  if [ -f "$KIT_HOME/claude/hooks/antigravity.sh" ]; then ok "Antigravity hooks registered: plan gate · plan check"; else err "Antigravity hooks are registered but $KIT_HOME/claude/hooks/antigravity.sh is missing"; fi
+else
+  warn "Antigravity hooks not registered (run install.sh): Antigravity only follows the rules, nothing blocks an unplanned edit"
+fi
+if grep -q 'aidlc-plan-gate' "$GEMINI_DIR/settings.json" 2>/dev/null; then ok "Gemini CLI hook registered: plan gate"
+elif command -v gemini >/dev/null 2>&1; then warn "Gemini CLI hook not registered (run install.sh)"; fi
 if [ -f "$KIT_HOME/brain/INDEX.md" ]; then ok "shared brain: $(grep -c '^- \[' "$KIT_HOME/brain/INDEX.md") lessons in $KIT_HOME/brain"; else warn "no shared brain in $KIT_HOME/brain (run install.sh)"; fi
 if [ -f "$KIT_HOME/tokens.sh" ]; then ok "token measurement: tokens.sh (reads Claude Code's own records)"; else warn "tokens.sh missing (run install.sh)"; fi
 if [ -f "$KIT_HOME/verify-plan.sh" ]; then ok "anti-hallucination plan check: verify-plan.sh"; else warn "verify-plan.sh missing (run install.sh)"; fi
@@ -177,6 +184,12 @@ if [ "$machine_only" = 0 ]; then
     fi
     if [ -f "$root/pubspec.yaml" ]; then
       if [ -x "$root/.fvm/flutter_sdk/bin/flutter" ] || command -v flutter >/dev/null 2>&1; then ok "Flutter SDK available"; else warn "Flutter SDK not on PATH: verification commands cannot run"; fi
+    fi
+    stack="$(grep -m 1 '^stack=' "$root/.agents/.aidlc-version" 2>/dev/null | cut -d= -f2)"
+    case "$stack" in node) tools="node npm" ;; python) tools="python3" ;; laravel|php) tools="php composer" ;; *) tools="" ;; esac
+    if [ -n "$tools" ]; then
+      miss=""; for t in $tools; do command -v "$t" >/dev/null 2>&1 || miss="$miss $t"; done
+      if [ -z "$miss" ]; then ok "backend ($stack): $tools available"; else warn "backend ($stack): not on PATH:$miss (verification commands cannot run)"; fi
     fi
   fi
 fi

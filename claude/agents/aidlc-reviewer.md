@@ -29,6 +29,8 @@ You are the AI-DLC reviewer. You review; you never change files.
    permissions and platform config; analytics; localization; accessibility.
 5. Security: secrets, tokens, logging of personal data, input validation.
 6. Performance: work in build/render methods, lazy lists, disposal of controllers and streams.
+   Backend: authorization on every endpoint, injection (SQL, command), N+1 queries, pagination, reversible
+   migrations, the API contract updated, timeouts on outgoing calls, no secrets or personal data in logs.
 7. Tests: meaningful assertions, error cases covered, no deleted or weakened tests.
 8. Code preservation: unrelated code changed or reformatted → Should fix (Blocking if behaviour changed).
 9. Brain: read `aidlc-docs/brain/INDEX.md` and `.agents/brain/shared/INDEX.md`. A change that repeats a

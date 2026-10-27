@@ -4,24 +4,37 @@
 
 AIDLC_KIT_HOME="${AIDLC_KIT_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
-# json_get <json> <.dot.path> → prints the value, or nothing if it is missing.
+# json_get <json> <.dot.path> → prints the value, or nothing if it is missing. Array items: `.list[0]`.
 json_get() {
   local json="$1" path="$2"
   if [ "${AIDLC_JSON_TOOL:-}" != "python3" ] && command -v jq >/dev/null 2>&1; then
     printf '%s' "$json" | jq -r "$path // empty" 2>/dev/null
   elif command -v python3 >/dev/null 2>&1; then
     printf '%s' "$json" | python3 -c '
-import json, sys
+import json, re, sys
 try:
     data = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
 for key in sys.argv[1].lstrip(".").split("."):
-    data = data.get(key) if isinstance(data, dict) else None
+    name, items = re.match(r"^([^\[]*)(.*)$", key).groups()
+    if name:
+        data = data.get(name) if isinstance(data, dict) else None
+    for i in re.findall(r"\[(\d+)\]", items):
+        data = data[int(i)] if isinstance(data, list) and int(i) < len(data) else None
     if data is None:
         sys.exit(0)
 print(json.dumps(data) if isinstance(data, (dict, list)) else data)
 ' "$path" 2>/dev/null
+  fi
+}
+
+# json_string <text> → the text as a JSON string literal (quotes and escapes included).
+json_string() {
+  if [ "${AIDLC_JSON_TOOL:-}" != "python3" ] && command -v jq >/dev/null 2>&1; then
+    printf '%s' "$1" | jq -Rs .
+  else
+    printf '%s' "$1" | python3 -c 'import json, sys; print(json.dumps(sys.stdin.read()))'
   fi
 }
 

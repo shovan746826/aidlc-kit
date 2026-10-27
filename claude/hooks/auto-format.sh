@@ -51,6 +51,10 @@ case "$file" in
   *.py)
     if command -v ruff >/dev/null 2>&1; then ruff format "$file" >/dev/null 2>&1
     elif command -v black >/dev/null 2>&1; then black -q "$file" >/dev/null 2>&1; fi ;;
+  *.php)
+    root="$(find_up "$dir" composer.json)" || root=""
+    if [ -n "$root" ] && [ -x "$root/vendor/bin/pint" ]; then "$root/vendor/bin/pint" "$file" >/dev/null 2>&1
+    elif [ -n "$root" ] && [ -x "$root/vendor/bin/php-cs-fixer" ]; then "$root/vendor/bin/php-cs-fixer" fix "$file" >/dev/null 2>&1; fi ;;
   *.go)
     command -v gofmt >/dev/null 2>&1 && gofmt -w "$file" >/dev/null 2>&1 ;;
 esac

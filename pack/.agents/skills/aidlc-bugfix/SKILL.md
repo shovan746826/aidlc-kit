@@ -19,7 +19,8 @@ description: Fix a bug the AI-DLC way. Triage questions, reproduce, find the roo
 1. Create the work item (type `bugfix`, e.g. `005-bugfix-login-crash`); state `mode: inception`,
    `stage: B1 Triage`; add it to the "Work items" table; save the task brief at the top of `questions.md`.
 2. Ask what is missing (question bank K): steps to reproduce; expected vs actual; how often; device, OS and
-   app version; logs or screenshots; since when; severity; workaround.
+   app version; logs or screenshots; since when; severity; workaround. Backend: the request and response, the
+   request ID and logs, the environment and the data involved (question bank L11).
 
 ## B2. Reproduce and find the root cause
 1. Reproduce by following the code path, reading logs, or running the existing tests. If you cannot

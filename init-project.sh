@@ -16,8 +16,10 @@ usage() {
   cat <<'EOF'
 Usage: bash init-project.sh [project-folder] [options]
   project-folder            default: the current folder
-  --standard <name>         auto (default) | flutter | android | ios | generic. Needed for a new app in an
-                            empty folder (there is nothing to detect yet). Re-runs keep the installed standard.
+  --standard <name>         auto (default) | flutter | android | ios | backend | generic. Needed for a new app
+                            or backend in an empty folder (nothing to detect yet). Re-runs keep the installed
+                            standard. Detected backends: Node.js (Express, NestJS, Fastify, Koa, Hapi, Hono),
+                            Python (FastAPI, Django, Flask), PHP (Laravel, Symfony, Slim).
   --migrate                 archive old workflow rules (.agents/rules/*workflow*.md, e.g. agent-workflow.md)
                             into .agents/archive/<time>/. Their rules are already merged into the AI-DLC rules.
                             The project's architecture standard is not touched.
@@ -57,7 +59,28 @@ detect_standard() {
   for x in "$p"/*.xcodeproj "$p"/*.xcworkspace "$p"/Package.swift; do
     if [ -e "$x" ]; then echo ios; return; fi
   done
+  if [ -n "$(backend_stack "$p")" ]; then echo backend; return; fi
   echo generic
+}
+
+# backend_stack <dir> → node | python | laravel | php when the folder is a backend (a server framework in its
+# manifest), else nothing. A frontend-only package.json (React, Vue, …) is not a backend.
+backend_stack() {
+  local p="$1" f
+  if [ -f "$p/package.json" ] && grep -Eq '"(express|@nestjs/core|fastify|koa|@hapi/hapi|hono)"[[:space:]]*:' "$p/package.json"; then
+    echo node; return 0
+  fi
+  if [ -f "$p/artisan" ] || { [ -f "$p/composer.json" ] && grep -q '"laravel/framework"' "$p/composer.json"; }; then
+    echo laravel; return 0
+  fi
+  if [ -f "$p/composer.json" ] && grep -Eq '"(symfony/framework-bundle|slim/slim)"' "$p/composer.json"; then
+    echo php; return 0
+  fi
+  if [ -f "$p/manage.py" ]; then echo python; return 0; fi
+  for f in "$p/pyproject.toml" "$p"/requirements*.txt "$p/Pipfile" "$p/setup.py"; do
+    if [ -f "$f" ] && grep -Eiq '(^|[^a-z])(fastapi|django|flask)([^a-z]|$)' "$f"; then echo python; return 0; fi
+  done
+  return 0
 }
 
 # standard_of <file> → what an architecture file is: flutter | android | ios (kit-made) | placeholder (generic,
@@ -91,17 +114,18 @@ RECORDED="$(grep -m 1 '^standard=' "$PROJECT/.agents/.aidlc-version" 2>/dev/null
 how="given"
 if [ "$STANDARD" = "auto" ]; then
   case "$RECORDED" in
-    flutter|android|ios) STANDARD="$RECORDED"; how="installed earlier" ;;
+    flutter|android|ios|backend) STANDARD="$RECORDED"; how="installed earlier" ;;
     *)
       STANDARD="$(detect_standard "$PROJECT")"; how="detected"
       if [ "$STANDARD" = "generic" ] && [ -z "$RECORDED" ] && is_empty_project "$PROJECT"; then
         die "this folder is empty, so the stack cannot be detected. For a new app, choose the standard:
-    bash \"$KIT/init-project.sh\" \"$PROJECT\" --standard flutter     (or android, ios, generic)
+    bash \"$KIT/init-project.sh\" \"$PROJECT\" --standard flutter     (or android, ios, backend, generic)
 Nothing was changed."
       fi ;;
   esac
 fi
-case "$STANDARD" in flutter|android|ios|generic) ;; *) die "unknown standard: $STANDARD (use flutter, android, ios or generic)" ;; esac
+case "$STANDARD" in flutter|android|ios|backend|generic) ;; *) die "unknown standard: $STANDARD (use flutter, android, ios, backend or generic)" ;; esac
+STACK=""; [ "$STANDARD" != backend ] || STACK="$(backend_stack "$PROJECT")"   # node | python | laravel | php
 
 VERSION="$(cat "$KIT/VERSION")"
 STAMP="$(date +%Y%m%d-%H%M%S)-$$"
@@ -145,7 +169,7 @@ write_generated() {
   fi
 }
 
-version_file() { printf 'version=%s\nstandard=%s\n' "$VERSION" "$INSTALLED_STD"; }
+version_file() { printf 'version=%s\nstandard=%s\n' "$VERSION" "$INSTALLED_STD"; [ -z "$STACK" ] || printf 'stack=%s\n' "$STACK"; }
 
 gitignore_with_backup_rule() {
   if [ -s "$PROJECT/.gitignore" ]; then strip_trailing_blank < "$PROJECT/.gitignore"; printf '\n'; fi
@@ -250,7 +274,9 @@ else INSTALLED_STD="$SKILL_WAS"; fi
 if [ "$REPLACE_SET" = 0 ]; then
   case "$SKILL_WAS" in
     custom|generated)
-      [ "$STANDARD" != generic ] && NOTES="$NOTES$NL  • This project has its own architecture standard (kept). To use the kit's $STANDARD standard instead, add --update-architecture (yours is archived in .agents/archive/)." ;;
+      case "$STANDARD" in   # only a ready-made house standard is worth switching to
+        flutter|android|ios) NOTES="$NOTES$NL  • This project has its own architecture standard (kept). To use the kit's $STANDARD standard instead, add --update-architecture (yours is archived in .agents/archive/)." ;;
+      esac ;;
     placeholder)
       NOTES="$NOTES$NL  • The architecture standard is not generated yet: ask the agent to analyze the project (it generates it for your approval)." ;;
     flutter|android|ios)
@@ -329,9 +355,9 @@ fi
 [ "$DRY" = 1 ] && say "DRY RUN: nothing was changed."
 say "AI-DLC pack v$VERSION → $PROJECT"
 if [ "$INSTALLED_STD" = "$STANDARD" ]; then
-  say "Architecture standard: $STANDARD ($how)"
+  say "Architecture standard: $STANDARD${STACK:+ · $STACK} ($how)"
 else
-  say "Architecture standard: $INSTALLED_STD (the project's own, kept) · kit standard for this stack: $STANDARD ($how)"
+  say "Architecture standard: $INSTALLED_STD (the project's own, kept) · kit standard for this stack: $STANDARD${STACK:+ · $STACK} ($how)"
 fi
 [ -n "$ADDED" ]    && say "Added:$ADDED"
 [ -n "$UPDATED" ]  && say "Updated:$UPDATED"
@@ -344,13 +370,24 @@ fi
 if [ "$INSTALLED_STD" = "android" ] || [ "$INSTALLED_STD" = "ios" ]; then
   say "  ! The $INSTALLED_STD standard is a proposed v1: review .agents/skills/project-architecture/SKILL.md."
 fi
-if [ "$DRY" = 0 ] && [ -n "$ADDED" ]; then
+if [ "$INSTALLED_STD" = "backend" ]; then
+  say "  • Backend${STACK:+ ($STACK)}: the first analysis writes this project's standard, its hard rules and its"
+  say "    verification commands from the code, for your approval. Until then the backend baseline rules apply."
+fi
+if [ "$DRY" = 0 ] && [ -n "$ADDED$UPDATED$ARCHIVED$REMOVED" ] && git -C "$PROJECT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  add=".agents aidlc-docs AGENTS.md CLAUDE.md GEMINI.md"   # only the AI-DLC files, never the user's own changes
+  if printf '%s\n' "$ADDED$UPDATED" | grep -qE '^  [+~] \.gitignore$'; then add="$add .gitignore"; fi
+  msg="chore: update AI-DLC to $VERSION"; [ "$new_workspace" = 1 ] && msg="chore: add AI-DLC"
   say ""
   say "Next steps"
-  say "  1. Review the changes, then commit the pack:"
-  say "       cd \"$PROJECT\" && git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc-docs .gitignore && git commit -m \"chore: add AI-DLC\""
-  say "  2. Claude Code: start a NEW session in this project, then type /aidlc analyze"
-  say "     Antigravity / Gemini: open the project and say \"analyze this project\""
-  say "  3. Then ask for what you want: a new feature, a change, a bug fix or a release. The agent asks"
-  say "     questions, writes the plan and waits for your approval before it changes any file."
+  say "  1. Review the changes, then commit only the AI-DLC files:"
+  say "       cd \"$PROJECT\" && git add $add && git commit -m \"$msg\""
+  if [ "$new_workspace" = 1 ]; then
+    say "  2. Claude Code: start a NEW session in this project, then type /aidlc analyze"
+    say "     Antigravity / Gemini: open the project and say \"analyze this project\""
+    say "  3. Then ask for what you want: a new feature, a change, a bug fix or a release. The agent asks"
+    say "     questions, writes the plan and waits for your approval before it changes any file."
+  else
+    say "  2. Start a new agent session in this project, so it loads the updated rules."
+  fi
 fi

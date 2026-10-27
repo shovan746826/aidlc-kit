@@ -17,5 +17,8 @@ Notes:
 - Skills live in `.agents/skills/<name>/SKILL.md`. If your tool does not list them, read the one that the
   routing table in `00-aidlc-core.md` names.
 - Antigravity: work in Planning mode and let the agent ask for your review before it changes files.
+- When the AI-DLC hooks are installed (Antigravity, Gemini CLI), edits to project files are blocked unless the
+  approved plan lists them, and Antigravity sends a draft plan with ✗ problems back to you before the gate.
+  If an edit is blocked, follow the message. Never work around the gate.
 - Gemini CLI tokens: `/stats` shows the token use, `/compress` summarizes the conversation.
 <!-- AIDLC:END -->

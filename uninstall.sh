@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# AI-DLC kit: remove the machine installation (Claude Code command, agent, hooks, global rules, ~/.aidlc-kit).
+# AI-DLC kit: remove the machine installation (Claude Code command, agent, hooks; Antigravity and Gemini CLI
+# hooks; global rules; ~/.aidlc-kit).
 # Projects are NOT changed. Copies of everything removed or edited go to ~/.aidlc-kit-uninstall-<time>/.
 set -euo pipefail
 
@@ -30,6 +31,16 @@ if [ -f "$CLAUDE_DIR/settings.json" ] && grep -q "claude/hooks/" "$CLAUDE_DIR/se
   backup_to "$CLAUDE_DIR/settings.json" "$SAFE/claude/settings.json"
   settings_hooks remove "$CLAUDE_DIR/settings.json" ""
   say "✓ removed the AI-DLC hooks from $CLAUDE_DIR/settings.json (other settings kept)"
+fi
+if [ -f "$GEMINI_DIR/config/hooks.json" ] && grep -qE '"aidlc-plan-(gate|check)"' "$GEMINI_DIR/config/hooks.json"; then
+  backup_to "$GEMINI_DIR/config/hooks.json" "$SAFE/gemini/config/hooks.json"
+  antigravity_hooks remove "$GEMINI_DIR/config/hooks.json" ""
+  say "✓ removed the AI-DLC hooks from $GEMINI_DIR/config/hooks.json (Antigravity; other hooks kept)"
+fi
+if [ -f "$GEMINI_DIR/settings.json" ] && grep -q 'aidlc-plan-gate' "$GEMINI_DIR/settings.json"; then
+  backup_to "$GEMINI_DIR/settings.json" "$SAFE/gemini/settings.json"
+  gemini_hooks remove "$GEMINI_DIR/settings.json" ""
+  say "✓ removed the AI-DLC hook from $GEMINI_DIR/settings.json (Gemini CLI; other settings kept)"
 fi
 
 for pair in "$CLAUDE_DIR/CLAUDE.md:claude" "$GEMINI_DIR/GEMINI.md:gemini"; do

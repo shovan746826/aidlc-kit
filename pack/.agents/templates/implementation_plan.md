@@ -122,12 +122,14 @@ sequenceDiagram
 ## 7. API changes
 | Method | Endpoint (URL constant name) | Request model | Response model | Error cases |
 |---|---|---|---|---|
-Or: "None".
+Or: "None". Backend: one row per endpoint it provides (method, path, request, response, authentication, errors);
+the API contract (OpenAPI) is updated; database changes are migration files in the Files tables, their rollback
+in §11.
 
 ## 8. Routing changes
 | Route constant | Path | Screen | Data passed (extra) | Navigated from |
 |---|---|---|---|---|
-Or: "None".
+Or: "None". (A backend's routes are its endpoints in §7.)
 
 ## 9. Dependencies
 | Package | Version constraint | Why | Alternatives considered |

@@ -106,3 +106,16 @@ with its reason, and "why it matters". At most 10 questions per round.
 - K5. Logs, error messages, screenshots, screen recordings.
 - K6. Severity (crash or data loss · blocks a main flow · has a workaround · cosmetic) and who is affected.
 - K7. Is there a workaround?
+
+## L. Backend (API, data, operations)
+- L1. Who calls this API (the mobile app, a web app, partners) and which versions must keep working?
+- L2. Endpoints: method, path, request and response JSON, error responses, pagination.
+- L3. Authentication and authorization: who may call it, with which roles or scopes?
+- L4. Data: tables or collections touched, new fields, migration of existing data, retention and deletion.
+- L5. Database and migration tool; transactions; expected volume (rows, requests per minute).
+- L6. Background work: jobs, queues, scheduled tasks, events; what happens when one fails?
+- L7. External services called (payments, email, storage): sandbox accounts, limits, timeouts.
+- L8. Environments (local, staging, production), configuration and where secrets live.
+- L9. Rate limits, caching, idempotency for retries.
+- L10. Logging, monitoring and alerts; personal data in logs must be avoided.
+- L11. Backend bug triage: the request and response, the request ID and logs, the environment, the data involved.

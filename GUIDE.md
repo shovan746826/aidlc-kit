@@ -6,7 +6,7 @@
 4. [The workflows](#4-the-workflows)
 5. [Answering questions](#5-answering-questions)
 6. [Approval gates](#6-approval-gates)
-7. [The plan gate in Claude Code](#7-the-plan-gate-in-claude-code)
+7. [The plan gate (Claude Code, Antigravity, Gemini CLI)](#7-the-plan-gate-claude-code-antigravity-gemini-cli)
 8. [Files and folders](#8-files-and-folders)
 9. [Architecture standards](#9-architecture-standards)
 10. [The brain: how the agent learns](#10-the-brain-how-the-agent-learns)
@@ -32,7 +32,8 @@ questions, plans, code, tests, reviews), and **you make the decisions** at fixed
 | **Operations** | Release: version, changelog, builds, rollout, monitoring | `aidlc-docs/releases/<version>/` |
 
 Three ideas make it reliable:
-1. **Plan first.** No file changes without a plan you approved. Claude Code enforces it with a hook.
+1. **Plan first.** No file changes without a plan you approved. Claude Code, Antigravity and Gemini CLI enforce
+   it with a hook.
 2. **Ask, don't guess.** Every plan starts with questions. Unknowns are marked, never invented.
 3. **Everything is written down.** State, decisions, approvals and reports live in `aidlc-docs/`, so any
    agent (or teammate) can continue the work.
@@ -54,7 +55,7 @@ cd ~/StudioProjects/MyApp && git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc
 
 | Step | What it changes |
 |---|---|
-| 1. `install.sh` | `~/.aidlc-kit/`: the scripts, hooks, settings (`config`) and the shared brain. **Claude Code:** the `/aidlc` command, the `aidlc-reviewer` agent, 5 hooks in `~/.claude/settings.json` (your other settings are kept) and the plan-first rule in `~/.claude/CLAUDE.md`. **Antigravity / Gemini:** the plan-first rule in `~/.gemini/GEMINI.md`. Skip parts with `--no-claude`, `--no-gemini` or `--no-hooks`. |
+| 1. `install.sh` | `~/.aidlc-kit/`: the scripts, hooks, settings (`config`) and the shared brain. **Claude Code:** the `/aidlc` command, the `aidlc-reviewer` agent, 5 hooks in `~/.claude/settings.json` (your other settings are kept) and the plan-first rule in `~/.claude/CLAUDE.md`. **Antigravity / Gemini:** the plan-first rule in `~/.gemini/GEMINI.md`, the plan gate and plan check in Antigravity's `~/.gemini/config/hooks.json`, and the plan gate in Gemini CLI's `~/.gemini/settings.json` (your own hooks and settings are kept). Skip parts with `--no-claude`, `--no-gemini` or `--no-hooks`. |
 | 2. `init-project.sh` | In the project: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` (text you wrote is kept), `.agents/` (rules, skills, templates, the architecture standard, a copy of the shared brain) and `aidlc-docs/` (state, audit log, project brain). The standard is detected (Flutter, Android, iOS or other); choose one with `--standard`. In a git project it adds `.agents/.backup/` to `.gitignore`. |
 | 3. Commit | These paths hold everything step 2 added, so your team and every agent get the same workflow. |
 
@@ -84,8 +85,8 @@ Android 14", "prepare release 1.3.0".
 | Agent | Loads automatically | Notes |
 |---|---|---|
 | **Claude Code** | `CLAUDE.md` → imports `AGENTS.md`, the 6 rule files and both brain indexes | Claude Code reads `AGENTS.md` by itself only when there is no `CLAUDE.md`, and never reads `.agents/`: the imports load everything. Skills in `.agents/skills/` are read when the rules route to them; `/aidlc` routes for you. Hooks: plan gate, plan check, session context, auto-format, learning hint. |
-| **Antigravity** | `.agents/rules/*.md` (with `trigger: always_on`), `.agents/skills/`, `AGENTS.md`, `GEMINI.md` | Use Planning mode and let the agent ask for your review before changes. Limits (official docs): 24,000 bytes per rule file; always-on and global rules share 20,000 tokens (`doctor` checks both). |
-| **Gemini CLI** | `GEMINI.md` → imports `AGENTS.md` and the rule files; skills in `.agents/skills/` | |
+| **Antigravity** | `.agents/rules/*.md` (with `trigger: always_on`), `.agents/skills/`, `AGENTS.md`, `GEMINI.md` | Use Planning mode and let the agent ask for your review before changes. Hooks (from `install.sh`): the plan gate on every file edit, the plan check when the agent ends its turn. Limits (official docs): 24,000 bytes per rule file; always-on and global rules share 20,000 tokens (`doctor` checks both). |
+| **Gemini CLI** | `GEMINI.md` → imports `AGENTS.md` and the rule files; skills in `.agents/skills/` | Hook (from `install.sh`): the plan gate on `write_file` and `replace`. |
 | **Gemini in Android Studio** | `GEMINI.md` (it wins over `AGENTS.md` in the same folder) → `@` imports `AGENTS.md`, the rule files and both brain indexes | `AGENTS.md` and imports need Android Studio Narwhal 4 Feature Drop or newer. |
 | **Other agents** (Codex, Cursor, Copilot, …) | `AGENTS.md` | Same pointers. |
 
@@ -222,9 +223,11 @@ Reply: approve · change: <what> · stop
 | `stop` | The work item is paused (gate closed) |
 | anything else | **Not** an approval: the agent waits |
 
-## 7. The plan gate in Claude Code
+## 7. The plan gate (Claude Code, Antigravity, Gemini CLI)
 
-The `plan-gate.sh` hook runs before every file edit by Claude:
+The same `plan-gate.sh` runs before every file edit by the agent: in Claude Code as a `PreToolUse` hook, in
+Gemini CLI as a `BeforeTool` hook, and in Antigravity as a `PreToolUse` hook through `antigravity.sh`, which
+turns the gate's answer into Antigravity's `allow` / `deny`. All three agents get the same rules and messages:
 
 | Situation | Result |
 |---|---|
@@ -253,7 +256,14 @@ git does not track yet (new files), so existing code is never reformatted. Dart 
 the project has the tool and its config.
 
 **Limits:** the hook guards Claude's file-edit tools. Shell commands that write files are forbidden by the
-rules, not blocked by the hook; `verify-plan.sh --done` still finds such changes after the build. Antigravity and Gemini have no hooks; they follow the always-on rules.
+rules, not blocked by the hook; `verify-plan.sh --done` still finds such changes after the build. Gemini in
+Android Studio has no hooks: there the always-on rules apply. In Antigravity, `AIDLC_ENFORCE=off` in
+`~/.aidlc-kit/config` pauses the gate (there is no per-session variable as in Claude Code).
+
+**Antigravity** reads the hooks from `~/.gemini/config/hooks.json` (installed by `install.sh`): `aidlc-plan-gate`
+on `write_to_file`, `replace_file_content` and `multi_replace_file_content`, and `aidlc-plan-check` when the
+agent ends its turn. **Your one-minute check:** open an AI-DLC project in Antigravity, and with no approved plan
+ask the agent to change a source file: the edit is refused with "AI-DLC plan gate: blocked a change to …".
 
 ## 8. Files and folders
 
@@ -297,9 +307,18 @@ overwritten. The architecture files change only together, with `--update-archite
 | **Flutter** | House standard v3: built from a production app. Rules in a 23 KB `SKILL.md` core (read before every plan) and 5 topic files (opened when a task touches that area); complete core, feature and test code in 4 more `reference/` files (opened only when needed), compile-checked on Riverpod 2 and 3 (`FLUTTER-STANDARD-V3-ANALYSIS.md`) | Riverpod + GoRouter + Dio + Hive + ScreenUtil; `controller/ model/ presentation/ provider/ repository/` |
 | **Android** | Proposed v1: review it | Kotlin + Compose + MVVM + Hilt + Retrofit; `viewmodel/ model/ presentation/ di/ repository/` |
 | **iOS** | Proposed v1: review it | Swift + SwiftUI + MVVM + async/await; `ViewModel/ Model/ View/ Repository/` |
+| **Backend** | Generated per project from its code; detected by itself | Node.js / TypeScript (Express, NestJS, Fastify, Koa, Hapi, Hono), Python (FastAPI, Django, Flask), PHP (Laravel, Symfony, Slim). Until the first analysis writes the standard, 12 backend baseline rules apply (validation, authorization, migrations with rollback, API contract, no secrets in logs, tests per endpoint) |
 | **Generic** | Generated per project | During analysis (existing code) or NP6 (new project), with your approval |
 
-All four share the same section layout, so every project's standard reads the same way.
+All five share the same section layout, so every project's standard reads the same way.
+
+**Backends** are separate repositories (one project each). `init-project.sh` detects the stack, installs the
+backend standard and rules and records `stack=node|python|laravel|php` in `.agents/.aidlc-version`. The first
+analysis then writes the project's own standard, its hard rules and its verification commands (for example
+`npm test`, `pytest`, `php artisan test`) from the code, for your approval. Plans list endpoints, payloads,
+authentication and migrations with their rollback; the reviewer checks authorization, injection, N+1 queries
+and the API contract; releases run migrations before the new code. An older backend that got the generic
+placeholder moves to the backend standard on its next update.
 
 **Customizing**
 - **Keep your existing architecture:** analyze the project (or `/aidlc architecture`) and choose "your
@@ -473,8 +492,10 @@ outside the plan changed, every numbered task is done, and the test and review r
 verification and a PASS. Your earlier changes show up only as warnings and are never reverted. Both also work
 when the app is a folder inside a bigger repository.
 
-**4. In Claude Code it is automatic:** a hook runs the check the moment the agent writes a plan file and
-tells the agent what does not exist, so it fixes the plan before you see it.
+**4. In Claude Code and Antigravity it is automatic:** Claude Code runs the check the moment the agent writes a
+plan file; Antigravity runs the full check when the agent ends its turn with a draft plan (each version of a
+plan at most once, at most 3 rounds). Both tell the agent what does not exist, so it fixes the plan before you
+see it.
 
 **5. Large or complex work** (full depth, a new project, more than about 5 files, a new package or API, a
 migration, security) follows `.agents/skills/aidlc-anti-hallucination/SKILL.md`: ground first, draft with
@@ -573,8 +594,8 @@ start Claude with `AIDLC_ENFORCE=off`.
 **Blocked: "The active plan is not approved".** The state file opened the gate, but the plan's status line
 still says `DRAFT`. Approve the plan; the agent then sets `> Status: APPROVED <date-time>`.
 
-**"This folder is empty, so the stack cannot be detected".** A new app: add `--standard flutter` (or
-`android`, `ios`, `generic`).
+**"This folder is empty, so the stack cannot be detected".** A new app or backend: add `--standard flutter` (or
+`android`, `ios`, `backend`, `generic`).
 
 **A project has an older pack (for example 2.0.0).** Run init again (`--dry-run` first). Add `--migrate` for
 old workflow rules. The project's own architecture standard is kept; switch with `--update-architecture`.

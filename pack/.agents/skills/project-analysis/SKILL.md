@@ -30,7 +30,10 @@ are going to read (one line).
    | `pubspec.yaml` with `sdk: flutter` | Flutter |
    | `settings.gradle(.kts)` or `app/build.gradle(.kts)`, no `pubspec.yaml` | Native Android |
    | `*.xcodeproj`, `*.xcworkspace` or `Package.swift`, no `pubspec.yaml` | Native iOS |
-   | `package.json`, `pyproject.toml`, `go.mod`, `composer.json`, … | Other (generic standard) |
+   | `package.json` with Express, NestJS, Fastify, Koa, Hapi or Hono | Backend: Node.js / TypeScript |
+   | `manage.py`, or FastAPI / Django / Flask in `pyproject.toml` or `requirements*.txt` | Backend: Python |
+   | `artisan`, or `laravel/framework` (Symfony, Slim) in `composer.json` | Backend: PHP / Laravel |
+   | anything else (`go.mod`, a frontend-only `package.json`, …) | Other (generic standard) |
    A repository can hold several (e.g. app + backend folder). Record each with its root folder.
 2. Identity: app name, package / bundle id, version, platform folders present, minimum OS versions.
 3. Greenfield (empty, or only the default scaffold) → stop here and tell the user to use
@@ -43,7 +46,8 @@ are going to read (one line).
    every deviation with its exact path (e.g. "`lib/features/agreement/presentation/widget/` uses `widget/`
    instead of `component/`").
 3. Feature registry: for each feature folder, record screens, routes (from the router config), API endpoints
-   (from the URL config), state holders (providers / view models) and short notes.
+   (from the URL config), state holders (providers / view models) and short notes. Backend: for each module,
+   its endpoints (method and path, from the routes or controllers), authentication, jobs and database tables.
 4. Conventions actually used, with one `path:line` example each: state, routing, networking, models, error
    handling, storage, design system (colors, sizes), imports, naming.
 5. Reference implementation: if a complete example feature exists, record it. Later plans copy its
@@ -73,6 +77,13 @@ are going to read (one line).
      the project uses code generation.
    - Native Android: `./gradlew lint testDebugUnitTest assembleDebug`.
    - Native iOS: `xcodebuild -scheme <App> -destination 'platform=iOS Simulator,name=<device>' build test`.
+   - Backend, Node.js: `npm ci` (or pnpm / yarn by the lock file) · `npm run lint` · `npx tsc --noEmit` (TypeScript)
+     · `npm test` · `npm run build` (if present).
+   - Backend, Python: install from the lock or requirements file · `ruff check .` (or flake8) · `mypy .` when
+     configured · `pytest` (Django without pytest: `python manage.py test`).
+   - Backend, Laravel: `composer install` · `./vendor/bin/pint --test` · PHPStan when present · `php artisan test`.
+   - Backends: take the real commands from `package.json` scripts, `pyproject.toml`, `composer.json`, the
+     Makefile and the CI config. Tests that need a database use the project's test database or container.
    - Other stacks: the project's own scripts (package.json scripts, Makefile, CI config).
 2. Baseline: run the analyzer/lint and the tests now and record counts (errors / warnings / infos; tests
    passed / failed). Builds are slow: ask the user before running a build for the baseline. These commands
@@ -97,7 +108,7 @@ whether to keep the choice. New projects choose in `aidlc-new-project` NP6 inste
    ★ rules: state management, folder layout and dependency injection → keep yours unless they cause real
    problems (changing them in a working app is expensive); an area with security or crash risks (tokens in
    logs, force-unwrapped responses, keys in source) → take AI-DLC's; otherwise keep what is consistent.
-   A generic project has no kit standard: only A is possible (generated as in A4.4).
+   A generic or backend project has no ready-made kit standard: only A is possible (generated as in A4.4).
 2. **Ask** (question protocol, `00-aidlc-core.md` §4):
    ```
    Q1. Which architecture should AI-DLC follow in this project?  (decides every later plan)

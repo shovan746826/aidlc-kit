@@ -70,7 +70,7 @@ for f in "$KIT"/pack/.agents/rules/*.md "$KIT"/standards/*/architecture-rules.md
 done
 [ "$rules_ok" = 1 ] && ok "rules have 'trigger: always_on' frontmatter and stay under 24,000 bytes"
 
-for s in flutter android ios generic; do
+for s in flutter android ios backend generic; do
   total=$(( $(wc -c < "$KIT/pack/AGENTS.md") + $(wc -c < "$KIT/pack/.agents/rules/00-aidlc-core.md") \
           + $(wc -c < "$KIT/pack/.agents/rules/10-quality-gates.md") + $(wc -c < "$KIT/pack/.agents/rules/30-learning.md") \
           + $(wc -c < "$KIT/pack/.agents/rules/40-token-efficiency.md") + $(wc -c < "$KIT/pack/.agents/rules/50-anti-hallucination.md") \
@@ -157,7 +157,7 @@ EOF
 done
 [ "$topic_ok" = 1 ] && ok "each Flutter topic file holds whole sections, and SKILL.md names it under the same headings" || bad "Flutter topic files and SKILL.md do not match"
 check "the always-on Flutter rule no longer asks to read sections 1–24 before planning" sh -c "! grep -q '1–24' '$KIT/standards/flutter/architecture-rules.md'"
-for s in flutter android ios generic; do
+for s in flutter android ios backend generic; do
   sed -n '2,4p' "$KIT/standards/$s/SKILL.md" | grep -q '^description: [^>|]' || bad "standards/$s/SKILL.md: description must be one line"
 done
 ok "standard skills have one-line descriptions (safe for every skill parser)"
@@ -270,6 +270,66 @@ out="$(bash "$KIT/init-project.sh" "$E" --standard flutter 2>&1)"
 check "--standard flutter replaces the untouched generic placeholder" contains "$E/.agents/skills/project-architecture/SKILL.md" "aidlc-kit:standard=flutter"
 check "... together with its rules" contains "$E/.agents/rules/20-architecture.md" "aidlc-kit:standard=flutter"
 check "... and the version file says flutter" contains "$E/.agents/.aidlc-version" "standard=flutter"
+
+section "2b. Backends: detected and set up by themselves (Node.js, Python, Laravel)"
+BK="$TMP/backends"; mkdir -p "$BK"
+be() { mkdir -p "$BK/$1"; $GIT -C "$BK/$1" init -q; }
+be express; printf '{ "dependencies": { "express": "^4.19.2" } }\n' > "$BK/express/package.json"
+be nest; printf '{ "dependencies": { "@nestjs/core": "^10.0.0" } }\n' > "$BK/nest/package.json"
+be fastapi; printf 'fastapi==0.115.0\nuvicorn\n' > "$BK/fastapi/requirements.txt"
+be django; printf 'import sys\n' > "$BK/django/manage.py"
+be laravel; printf '{ "require": { "laravel/framework": "^11.0" } }\n' > "$BK/laravel/composer.json"
+be react; printf '{ "dependencies": { "react": "^18.3.1" } }\n' > "$BK/react/package.json"
+out_express="$(bash "$KIT/init-project.sh" "$BK/express" 2>&1)"
+for pair in express:node nest:node fastapi:python django:python laravel:laravel; do
+  d="${pair%%:*}"; st="${pair#*:}"
+  [ "$d" = express ] || bash "$KIT/init-project.sh" "$BK/$d" >/dev/null 2>&1
+  if grep -qx 'standard=backend' "$BK/$d/.agents/.aidlc-version" && grep -qx "stack=$st" "$BK/$d/.agents/.aidlc-version"; then
+    ok "detects the $d backend (stack $st)"
+  else
+    bad "detects the $d backend (stack $st)"
+  fi
+done
+printf '%s\n' "$out_express" | grep -q 'backend · node (detected)' && ok "init names the backend and its stack" || bad "init names the backend and its stack"
+printf '%s\n' "$out_express" | grep -q 'the first analysis writes this project' && ok "init says the standard is written from the code at the first analysis" \
+  || bad "init says the standard is written from the code at the first analysis"
+check "the backend standard is installed, to be generated from the code" contains "$BK/express/.agents/skills/project-architecture/SKILL.md" "aidlc-kit:standard=backend · NOT GENERATED YET"
+check "... with the backend baseline rules" cmp -s "$KIT/standards/backend/architecture-rules.md" "$BK/express/.agents/rules/20-architecture.md"
+printf '%s\n' "$out_express" | grep 'git add' | grep -q '\.gitignore' && ok "a first install's commit command includes the .gitignore it changed" \
+  || bad "a first install's commit command includes the .gitignore it changed"
+bash "$KIT/init-project.sh" "$BK/react" >/dev/null 2>&1
+check "a frontend-only package.json stays generic" contains "$BK/react/.agents/.aidlc-version" "standard=generic"
+printf '\nlocal edit\n' >> "$BK/nest/.agents/rules/00-aidlc-core.md"
+out="$(bash "$KIT/init-project.sh" "$BK/nest" 2>&1)"
+printf '%s\n' "$out" | grep -q "chore: update AI-DLC to $(cat "$KIT/VERSION")" && ok "an update shows its commit command" || bad "an update shows its commit command"
+printf '%s\n' "$out" | grep 'git add' | grep -q '\.gitignore' && bad "an update's commit command leaves .gitignore out (the user's own changes stay out)" \
+  || ok "an update's commit command leaves .gitignore out (the user's own changes stay out)"
+be old; printf '{ "dependencies": { "fastify": "^4.0.0" } }\n' > "$BK/old/package.json"
+bash "$KIT/init-project.sh" "$BK/old" --standard generic >/dev/null 2>&1
+bash "$KIT/init-project.sh" "$BK/old" >/dev/null 2>&1
+check "an untouched generic placeholder moves to the backend standard on the next update" contains "$BK/old/.agents/skills/project-architecture/SKILL.md" "aidlc-kit:standard=backend"
+check "... and the version file says backend" contains "$BK/old/.agents/.aidlc-version" "standard=backend"
+be own; printf '{ "dependencies": { "express": "^4.0.0" } }\n' > "$BK/own/package.json"; mkdir -p "$BK/own/.agents/skills/project-architecture"
+printf -- '---\nname: project-architecture\ndescription: own\n---\n# Our API standard\n' > "$BK/own/.agents/skills/project-architecture/SKILL.md"
+out="$(bash "$KIT/init-project.sh" "$BK/own" 2>&1)"
+check "a backend's own standard is kept" contains "$BK/own/.agents/skills/project-architecture/SKILL.md" "# Our API standard"
+printf '%s\n' "$out" | grep -q "To use the kit's backend standard" && bad "no advice to swap a backend's own standard for the placeholder" \
+  || ok "no advice to swap a backend's own standard for the placeholder"
+be empty; bash "$KIT/init-project.sh" "$BK/empty" --standard backend >/dev/null 2>&1
+check "--standard backend sets up an empty folder" contains "$BK/empty/.agents/.aidlc-version" "standard=backend"
+out="$(AIDLC_KIT_HOME="$KIT" bash "$KIT/claude/bin/doctor.sh" "$BK/express" 2>&1)"
+printf '%s\n' "$out" | grep -q 'backend (node)' && ok "doctor checks the backend's tools" || bad "doctor checks the backend's tools"
+mkdir -p "$BK/laravel/vendor/bin" "$BK/laravel/app"
+printf '#!/bin/sh\nprintf "// formatted\\n" >> "$1"\n' > "$BK/laravel/vendor/bin/pint"; chmod +x "$BK/laravel/vendor/bin/pint"
+printf '<?php\n' > "$BK/laravel/app/NewThing.php"
+printf '{"tool_input":{"file_path":"%s"}}' "$BK/laravel/app/NewThing.php" | AIDLC_KIT_HOME="$KIT" bash "$KIT/claude/hooks/auto-format.sh"
+check "auto-format runs the project's Pint on a new PHP file" contains "$BK/laravel/app/NewThing.php" "// formatted"
+CS="$KIT/pack/.agents"
+check "analysis: backend detection and verification commands" sh -c "grep -q 'Backend: Node.js / TypeScript' '$CS/skills/project-analysis/SKILL.md' && grep -q 'php artisan test' '$CS/skills/project-analysis/SKILL.md' && grep -q 'pytest' '$CS/skills/project-analysis/SKILL.md'"
+check "question bank: backend questions" contains "$CS/templates/question-bank.md" "## L. Backend"
+check "reviewer: backend checks" contains "$KIT/claude/agents/aidlc-reviewer.md" "Backend: authorization on every endpoint"
+check "release: backend migrations and rollback order" contains "$CS/skills/aidlc-release/SKILL.md" "migrations run before the new code"
+check "/aidlc init offers the backend standard" contains "$KIT/claude/skills/aidlc/SKILL.md" "backend|generic"
 
 N="$TMP/new app"; mkdir -p "$N"; $GIT -C "$N" init -q
 out="$(bash "$KIT/init-project.sh" "$N" 2>&1)"; rc=$?
@@ -509,6 +569,9 @@ EOF
 printf '# My global rules\n' > "$H/.claude/CLAUDE.md"
 printf 'Old AI-DLC v1 Flutter reviewer\n' > "$H/.claude/agents/flutter-reviewer.md"
 printf '# My Gemini rules\n' > "$H/.gemini/GEMINI.md"
+mkdir -p "$H/.gemini/config"
+printf '{\n  "my-format": { "PostToolUse": [ { "matcher": "write_to_file", "hooks": [ { "type": "command", "command": "echo my-agy-hook" } ] } ] }\n}\n' > "$H/.gemini/config/hooks.json"
+printf '{\n  "theme": "dark",\n  "hooks": { "BeforeTool": [ { "matcher": "run_shell_command", "hooks": [ { "name": "my-check", "type": "command", "command": "echo my-gemini-hook" } ] } ] }\n}\n' > "$H/.gemini/settings.json"
 
 run_install() { env -u AIDLC_KIT_HOME HOME="$H" "$@" bash "$KIT/install.sh" >"$TMP/install.out" 2>&1; }
 
@@ -538,6 +601,18 @@ expect_rc "CLAUDE.md block added once" 1 "$(count_in "$H/.claude/CLAUDE.md" "AID
 check "CLAUDE.md user text kept" contains "$H/.claude/CLAUDE.md" "# My global rules"
 expect_rc "GEMINI.md block added once" 1 "$(count_in "$H/.gemini/GEMINI.md" "AIDLC:BEGIN")"
 check "GEMINI.md user text kept" contains "$H/.gemini/GEMINI.md" "# My Gemini rules"
+AGY="$H/.gemini/config/hooks.json"; GCLI="$H/.gemini/settings.json"
+check "Antigravity: plan gate (PreToolUse on file edits) and plan check (Stop) registered" python3 -c 'import json, sys
+d = json.load(open(sys.argv[1]))
+g = d["aidlc-plan-gate"]["PreToolUse"][0]
+assert g["matcher"] == "write_to_file|replace_file_content|multi_replace_file_content"
+assert g["hooks"][0]["command"].endswith("antigravity.sh\" pre-tool")
+assert d["aidlc-plan-check"]["Stop"][0]["command"].endswith("antigravity.sh\" stop")' "$AGY"
+check "Antigravity: your own hooks are kept" contains "$AGY" "echo my-agy-hook"
+check "Gemini CLI: plan gate registered as a BeforeTool hook (write_file|replace)" python3 -c 'import json, sys
+d = json.load(open(sys.argv[1]))
+assert any(e.get("matcher") == "write_file|replace" and e["hooks"][0]["name"] == "aidlc-plan-gate" for e in d["hooks"]["BeforeTool"])' "$GCLI"
+check "Gemini CLI: your own settings and hooks are kept" sh -c "grep -q '\"theme\": \"dark\"' '$GCLI' && grep -q 'echo my-gemini-hook' '$GCLI'"
 
 printf -- '---\nid: S-900\ntitle: my own shared lesson\n---\n' > "$H/.aidlc-kit/brain/lessons/S-900-mine.md"
 printf -- '- [S-900](lessons/S-900-mine.md) · rule · any · t · my own shared lesson · ✓0 ✗0\n' >> "$H/.aidlc-kit/brain/INDEX.md"
@@ -587,12 +662,21 @@ expect_rc "re-install does not duplicate starter index lines" 1 "$(grep -c 'S-00
 for h in plan-gate auto-format session-start learn-hint plan-check; do expect_rc "after re-install, hook $h still registered once" 1 "$(hooks_count $h)"; done
 expect_rc "after re-install, CLAUDE.md block still once" 1 "$(count_in "$H/.claude/CLAUDE.md" "AIDLC:BEGIN")"
 check "settings.json still valid" jq empty "$H/.claude/settings.json"
+expect_rc "after re-install, the Antigravity plan gate is there once" 1 "$(grep -c '"aidlc-plan-gate"' "$AGY")"
+expect_rc "after re-install, the Gemini CLI plan gate is there once" 1 "$(grep -c 'aidlc-plan-gate' "$GCLI")"
 
 cmd="$(jq -r '.hooks.PreToolUse[] | .hooks[] | select(.command | contains("plan-gate.sh")) | .command' "$H/.claude/settings.json")"
 printf '{"tool_input":{"file_path":"%s/x.txt"}}' "$TMP/loose" | env -u AIDLC_KIT_HOME HOME="$H" sh -c "$cmd" >/dev/null 2>&1
 expect_rc "registered hook command runs (path with a space)" 0 "$?"
 printf '{"tool_input":{"file_path":"%s/lib/zzz.dart"}}' "$P" | env -u AIDLC_KIT_HOME HOME="$H" sh -c "$cmd" >/dev/null 2>&1
 expect_rc "registered hook command blocks an unplanned file" 2 "$?"
+acmd="$(jq -r '."aidlc-plan-gate".PreToolUse[0].hooks[0].command' "$AGY")"
+out="$(printf '{"workspacePaths":["%s"],"toolCall":{"name":"write_to_file","args":{"TargetFile":"%s/lib/zzz.dart"}}}' "$P" "$P" | env -u AIDLC_KIT_HOME HOME="$H" sh -c "$acmd")"
+printf '%s' "$out" | grep -q '"decision":"deny"' && ok "the registered Antigravity command denies an unplanned file" \
+  || bad "the registered Antigravity command denies an unplanned file"
+gcmd="$(jq -r '.hooks.BeforeTool[] | .hooks[] | select(.name == "aidlc-plan-gate") | .command' "$GCLI")"
+printf '{"tool_name":"write_file","cwd":"%s","tool_input":{"file_path":"%s/lib/zzz.dart"}}' "$P" "$P" | env -u AIDLC_KIT_HOME HOME="$H" sh -c "$gcmd" >/dev/null 2>&1
+expect_rc "the registered Gemini CLI command blocks an unplanned file (exit 2)" 2 "$?"
 env -u AIDLC_KIT_HOME HOME="$H" bash "$H/.aidlc-kit/claude/bin/doctor.sh" --machine >/dev/null 2>&1
 expect_rc "doctor --machine passes after install" 0 "$?"
 
@@ -605,6 +689,8 @@ check "other settings still there" sh -c "jq -e '.model == \"opus\"' '$H/.claude
 expect_rc "CLAUDE.md block removed" 0 "$(count_in "$H/.claude/CLAUDE.md" "AIDLC:BEGIN")"
 check "CLAUDE.md user text kept" contains "$H/.claude/CLAUDE.md" "# My global rules"
 expect_rc "GEMINI.md block removed" 0 "$(count_in "$H/.gemini/GEMINI.md" "AIDLC:BEGIN")"
+check "uninstall removes the Antigravity hooks and keeps yours" sh -c "! grep -q 'aidlc-plan' '$AGY' && grep -q 'echo my-agy-hook' '$AGY'"
+check "uninstall removes the Gemini CLI hook and keeps your settings" sh -c "! grep -q 'aidlc-plan-gate' '$GCLI' && grep -q 'echo my-gemini-hook' '$GCLI' && grep -q 'dark' '$GCLI'"
 check "/aidlc skill removed" test ! -e "$H/.claude/skills/aidlc"
 check "reviewer agent removed" test ! -e "$H/.claude/agents/aidlc-reviewer.md"
 check "~/.aidlc-kit removed" test ! -e "$H/.aidlc-kit"
@@ -1235,6 +1321,52 @@ check "research: spikes" contains "$CS/skills/aidlc-research/SKILL.md" "## Spike
 check "bug fix: what must not change" contains "$CS/templates/bugfix_plan.md" "- Must not change:"
 check "reviewer: only real gaps" contains "$KIT/claude/agents/aidlc-reviewer.md" "**Scope:** report only what affects correctness"
 check "release: web and backend deploys, rollout gates" sh -c "grep -q 'Web or backend' '$CS/skills/aidlc-release/SKILL.md' && grep -q 'with gates' '$CS/skills/aidlc-release/SKILL.md'"
+
+section "15. Antigravity and Gemini CLI hooks (the same plan gate)"
+AG="$KIT/claude/hooks/antigravity.sh"; AT="$TMP/agy tmp"; mkdir -p "$AT"
+AP="$TMP/agy app"; mkdir -p "$AP/lib"; $GIT -C "$AP" init -q; printf '{ "dependencies": { "express": "^4.0.0" } }\n' > "$AP/package.json"
+bash "$KIT/init-project.sh" "$AP" >/dev/null 2>&1
+agy() { printf '{"conversationId":"c1","workspacePaths":["%s"],"toolCall":{"name":"%s","args":{"TargetFile":"%s"}}}' "$1" "$2" "$3" | TMPDIR="$AT" bash "$AG" "$4"; }
+out="$(agy "$AP" write_to_file "$AP/lib/app.js" pre-tool)"
+printf '%s' "$out" | python3 -c 'import json, sys; d = json.load(sys.stdin); assert d["decision"] == "deny" and "AI-DLC plan gate" in d["reason"]' \
+  && ok "pre-tool: an unplanned edit is denied with the gate's message (valid JSON)" || bad "pre-tool: an unplanned edit is denied with the gate's message (valid JSON)"
+agy "$AP" multi_replace_file_content "$AP/lib/app.js" pre-tool | grep -q '"decision":"deny"' && ok "pre-tool: multi-part edits are checked too" || bad "pre-tool: multi-part edits are checked too"
+[ "$(agy "$AP" write_to_file "$AP/aidlc-docs/work/x.md" pre-tool)" = '{"decision":"allow"}' ] && ok "pre-tool: a planning document is allowed" || bad "pre-tool: a planning document is allowed"
+[ "$(agy "$TMP" write_to_file "$TMP/notes.txt" pre-tool)" = '{"decision":"allow"}' ] && ok "pre-tool: outside an AI-DLC project everything is allowed" \
+  || bad "pre-tool: outside an AI-DLC project everything is allowed"
+[ "$(printf '{"workspacePaths":["%s"],"toolCall":{"name":"view_file","args":{}}}' "$AP" | bash "$AG" pre-tool)" = '{"decision":"allow"}' ] \
+  && ok "pre-tool: a call without a target file is allowed" || bad "pre-tool: a call without a target file is allowed"
+out="$(printf '{"workspacePaths":["%s"],"toolCall":{"name":"write_to_file","args":{"TargetFile":"%s/lib/app.js"}}}' "$AP" "$AP" | AIDLC_JSON_TOOL=python3 bash "$AG" pre-tool)"
+printf '%s' "$out" | grep -q '"decision":"deny"' && ok "pre-tool works without jq (python3)" || bad "pre-tool works without jq (python3)"
+[ "$(printf '{"workspacePaths":["%s"],"toolCall":{"name":"write_to_file","args":{"TargetFile":"%s/lib/app.js"}}}' "$AP" "$AP" | AIDLC_ENFORCE=off bash "$AG" pre-tool)" = '{"decision":"allow"}' ] \
+  && ok "pre-tool: AIDLC_ENFORCE=off allows everything" || bad "pre-tool: AIDLC_ENFORCE=off allows everything"
+v="$( . "$KIT/claude/hooks/lib.sh"; AIDLC_JSON_TOOL=python3 json_get '{"a":[{"b":"x"}]}' '.a[0].b' )"
+expect_rc "json_get reads array items without jq" x "$v"
+SPL="$AP/aidlc-docs/work/002-change-x/implementation_plan.md"; mkdir -p "$(dirname "$SPL")"
+printf '# Plan\n> Status: DRAFT\n> Type: change\n## Thinking summary\n- Depth: light\n## 1. Objective\n### US-1: x\n- AC1: Given a, when b, then c.\n<!-- aidlc:files:begin -->\n## 4. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/invented.js` | x |\n<!-- aidlc:files:end -->\n' > "$SPL"
+out="$(agy "$AP" x x stop)"
+printf '%s' "$out" | python3 -c 'import json, sys; d = json.load(sys.stdin); assert d["decision"] == "continue" and "file to modify does not exist: lib/invented.js" in d["reason"]' \
+  && ok "stop: a draft plan with problems sends the agent back with them" || bad "stop: a draft plan with problems sends the agent back with them"
+[ "$(agy "$AP" x x stop)" = '{}' ] && ok "stop: the same version of a plan is not sent back twice" || bad "stop: the same version of a plan is not sent back twice"
+printf '\n<!-- v2 -->\n' >> "$SPL"
+agy "$AP" x x stop | grep -q '"continue"' && ok "stop: a changed plan that still has problems is sent back again" || bad "stop: a changed plan that still has problems is sent back again"
+printf '\n<!-- v3 -->\n' >> "$SPL"; agy "$AP" x x stop >/dev/null
+printf '\n<!-- v4 -->\n' >> "$SPL"
+[ "$(agy "$AP" x x stop)" = '{}' ] && ok "stop: at most 3 rounds per plan (no endless loop)" || bad "stop: at most 3 rounds per plan (no endless loop)"
+rm -f "$SPL"; rmdir "$(dirname "$SPL")"
+SPL2="$AP/aidlc-docs/work/003-change-y/implementation_plan.md"; mkdir -p "$(dirname "$SPL2")"
+printf '# Plan\n> Status: APPROVED 2026-10-27 10:00\n> Type: change\n<!-- aidlc:files:begin -->\n## 4. Files to modify\n| # | Path | What changes |\n|---|---|---|\n| M1 | `lib/other-invented.js` | x |\n<!-- aidlc:files:end -->\n' > "$SPL2"
+[ "$(agy "$AP" x x stop)" = '{}' ] && ok "stop: approved plans are left alone" || bad "stop: approved plans are left alone"
+sed 's/Status: APPROVED 2026-10-27 10:00/Status: DRAFT/' "$SPL2" > "$TMP/p.md" && cat "$TMP/p.md" > "$SPL2"; touch -t 202001010000 "$SPL2"
+[ "$(agy "$AP" x x stop)" = '{}' ] && ok "stop: plans not changed in the last hour are left alone" || bad "stop: plans not changed in the last hour are left alone"
+rm -f "$SPL2"; rmdir "$(dirname "$SPL2")"
+[ "$(agy "$TMP" x x stop)" = '{}' ] && ok "stop: outside an AI-DLC project nothing happens" || bad "stop: outside an AI-DLC project nothing happens"
+printf '{"tool_name":"write_file","cwd":"%s","tool_input":{"file_path":"%s/lib/app.js"}}' "$AP" "$AP" | bash "$KIT/claude/hooks/plan-gate.sh" >/dev/null 2>"$TMP/gem.err"
+expect_rc "Gemini CLI input (write_file): the plan gate blocks an unplanned edit" 2 "$?"
+check "... with the gate's message" contains "$TMP/gem.err" "AI-DLC plan gate"
+printf '{"tool_name":"replace","cwd":"%s","tool_input":{"file_path":"%s/aidlc-docs/work/x.md"}}' "$AP" "$AP" | bash "$KIT/claude/hooks/plan-gate.sh" >/dev/null 2>&1
+expect_rc "Gemini CLI input (replace): a planning document is allowed" 0 "$?"
+check "the guide no longer says Antigravity and Gemini have no hooks" sh -c "! grep -q 'Antigravity and Gemini have no hooks' '$KIT/GUIDE.md'"
 
 # =====================================================================================================
 printf '\nResult: %d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"

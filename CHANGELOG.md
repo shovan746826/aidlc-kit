@@ -1,5 +1,47 @@
 # Changelog
 
+## 3.2.0 (2026-10-27)
+
+**The plan gate works in Antigravity and Gemini CLI too.** Both now have hooks (official docs: Antigravity
+`~/.gemini/config/hooks.json`, Gemini CLI `BeforeTool` in `settings.json`), so the rules are enforced there as
+in Claude Code, with the same `plan-gate.sh` and the same messages.
+- **Antigravity:** `claude/hooks/antigravity.sh` adapts the hooks. `pre-tool` (on `write_to_file`,
+  `replace_file_content`, `multi_replace_file_content`) runs the plan gate and answers `allow` or `deny` with the
+  gate's message. `stop` runs `verify-plan.sh` when the agent ends its turn: a draft plan changed in the last
+  hour that has ✗ problems sends the agent back with them, once per version of the plan and at most 3 rounds.
+- **Gemini CLI:** the plan gate as a `BeforeTool` hook on `write_file` and `replace` (exit 2 blocks, as in
+  Claude Code), registered in `~/.gemini/settings.json` even before Gemini CLI is installed.
+- `install.sh` registers both (backups first; your own hooks and settings are kept), `uninstall.sh` removes
+  only the kit's, `--no-gemini` / `--no-hooks` skip them; `doctor` reports them.
+- `json_get` reads array items (`.workspacePaths[0]`) without jq; `json_string` encodes JSON strings.
+- `AGENTS.md` and `GEMINI.md` say that the three agents enforce the gate; the GUIDE no longer says
+  "Antigravity and Gemini have no hooks" (Gemini in Android Studio still has none: rules only).
+- Tests: **487 checks** (was 458).
+
+## 3.1.0 (2026-10-25)
+
+**Backend projects.** Each repository is one project: an app and its backend are set up separately.
+- **Detection:** `init-project.sh` recognizes Node.js / TypeScript (Express, NestJS, Fastify, Koa, Hapi, Hono),
+  Python (FastAPI, Django, Flask) and PHP (Laravel, Symfony, Slim) backends, installs the new **backend**
+  standard and records `stack=` in `.agents/.aidlc-version`. A frontend-only `package.json` stays generic. An
+  older backend with the untouched generic placeholder moves to the backend standard on its next update.
+  `--standard backend` sets up an empty folder.
+- **Backend standard:** generated from the project's own code at the first analysis (22 sections: request
+  flow, validation, authentication and authorization, data access, migrations, jobs, configuration, security,
+  observability, new-endpoint checklist, commands, testing, deployment) with per-stack hints; until then 12
+  always-on backend baseline rules apply.
+- **Workflow:** analysis detects backends, keeps an endpoint registry and knows their verification commands
+  (`npm test`, `npx tsc --noEmit`, `pytest`, `ruff`, `mypy`, `php artisan test`, Pint, PHPStan); question bank
+  section L; plans list endpoints, the API contract and migrations with their rollback; feature and bug-fix
+  questions for backends; releases run migrations before the new code, with a smoke test per environment.
+- **Tools:** the reviewer checks authorization, injection, N+1 queries, pagination, reversible migrations, the
+  API contract, timeouts and logs; auto-format runs the project's Pint or PHP-CS-Fixer on new PHP files; the
+  doctor checks the backend's tools; `/aidlc init` offers `backend`.
+- **Fixed (found in the re-analysis):** after an update the installer now prints the commit command too, and
+  it adds `.gitignore` only when the kit changed it, so your own uncommitted `.gitignore` edits stay out. A
+  project with its own standard is no longer told to switch to the backend placeholder.
+- Tests: **458 checks** (was 432).
+
 ## 3.0.0 (2026-10-23)
 
 **Complex projects: every stage is proven, and planning matches the best public methods.** Checked against

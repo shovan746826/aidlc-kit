@@ -37,7 +37,8 @@
 ```
 
 ## 5. Feature registry
-<!-- Updated after every completed work item (aidlc-construction C6). -->
+<!-- Updated after every completed work item (aidlc-construction C6). Backend: one row per module; Screens →
+     endpoints (method path), Routes → authentication, State holders → jobs and database tables. -->
 | Feature | Folder | Screens | Routes | API endpoints | State holders | Notes |
 |---|---|---|---|---|---|---|
 

@@ -176,3 +176,110 @@ PY
   rm -f "$tmp"
   json_valid "$settings" || die "$settings became invalid JSON; restore it from the backup"
 }
+
+# antigravity_hooks <add|remove> <hooks.json> <hooks dir>: the AI-DLC hooks in Google Antigravity's global hooks
+# file (~/.gemini/config/hooks.json): "aidlc-plan-gate" (PreToolUse on file edits) and "aidlc-plan-check" (Stop).
+# The user's own hooks are kept; a file that "remove" leaves empty is deleted.
+antigravity_hooks() {
+  local action="$1" file="$2" hooks="$3" tool tmp
+  tool="$(json_tool)" || die "jq or python3 is needed to edit $file"
+  if [ "$action" = remove ] && [ ! -f "$file" ]; then return 0; fi
+  [ -s "$file" ] || printf '{}\n' > "$file"
+  json_valid "$file" || die "$file is not valid JSON; fix it first (nothing was changed)"
+  tmp="$(mktemp)"
+  if [ "$tool" = "jq" ]; then
+    jq --arg action "$action" \
+       --arg gate "bash \"$hooks/antigravity.sh\" pre-tool" \
+       --arg check "bash \"$hooks/antigravity.sh\" stop" '
+      del(.["aidlc-plan-gate"], .["aidlc-plan-check"])
+      | if $action == "add" then
+          . + {"aidlc-plan-gate": {PreToolUse: [{matcher: "write_to_file|replace_file_content|multi_replace_file_content",
+                                                  hooks: [{type: "command", command: $gate, timeout: 15}]}]},
+               "aidlc-plan-check": {Stop: [{type: "command", command: $check, timeout: 60}]}}
+        else . end
+    ' "$file" > "$tmp" || { rm -f "$tmp"; die "could not update $file"; }
+  else
+    python3 - "$action" "$file" "$hooks" > "$tmp" <<'PY' || { rm -f "$tmp"; die "could not update $file"; }
+import json, sys
+action, path, hooks = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, encoding="utf-8") as f:
+    data = json.load(f)
+for key in ("aidlc-plan-gate", "aidlc-plan-check"):
+    data.pop(key, None)
+if action == "add":
+    data["aidlc-plan-gate"] = {"PreToolUse": [{
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [{"type": "command", "command": 'bash "%s/antigravity.sh" pre-tool' % hooks, "timeout": 15}]}]}
+    data["aidlc-plan-check"] = {"Stop": [
+        {"type": "command", "command": 'bash "%s/antigravity.sh" stop' % hooks, "timeout": 60}]}
+print(json.dumps(data, indent=2))
+PY
+  fi
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
+  json_valid "$file" || die "$file became invalid JSON; restore it from the backup"
+  if [ "$action" = remove ] && [ "$(tr -d ' \n\t' < "$file")" = "{}" ]; then rm -f "$file"; fi
+}
+
+# gemini_hooks <add|remove> <settings.json> <hooks dir>: the AI-DLC plan gate as a Gemini CLI BeforeTool hook
+# (matcher write_file|replace; exit 2 blocks, as in Claude Code). The user's own settings and hooks are kept.
+gemini_hooks() {
+  local action="$1" file="$2" hooks="$3" tool tmp
+  tool="$(json_tool)" || die "jq or python3 is needed to edit $file"
+  if [ "$action" = remove ] && [ ! -f "$file" ]; then return 0; fi
+  [ -s "$file" ] || printf '{}\n' > "$file"
+  json_valid "$file" || die "$file is not valid JSON; fix it first (nothing was changed)"
+  tmp="$(mktemp)"
+  if [ "$tool" = "jq" ]; then
+    jq --arg action "$action" --arg gate "bash \"$hooks/plan-gate.sh\"" '
+      def ours: (.name // "") == "aidlc-plan-gate" or ((.command // "") | test("claude/hooks/plan-gate\\.sh"));
+      def clean: map(if ((.hooks // []) | length) > 0 and ((.hooks // []) | all(ours))
+                     then empty
+                     else .hooks = ((.hooks // []) | map(select(ours | not))) end);
+      (if (.hooks | type) == "object" and (.hooks.BeforeTool | type) == "array"
+         then .hooks.BeforeTool |= clean else . end)
+      | if $action == "add" then
+          .hooks = (.hooks // {})
+          | .hooks.BeforeTool = ((.hooks.BeforeTool // []) + [{matcher: "write_file|replace",
+              hooks: [{name: "aidlc-plan-gate", type: "command", command: $gate, timeout: 15000}]}])
+        else
+          (if (.hooks | type) == "object" and .hooks.BeforeTool == [] then .hooks |= del(.BeforeTool) else . end)
+          | (if .hooks == {} then del(.hooks) else . end)
+        end
+    ' "$file" > "$tmp" || { rm -f "$tmp"; die "could not update $file"; }
+  else
+    python3 - "$action" "$file" "$hooks" > "$tmp" <<'PY' || { rm -f "$tmp"; die "could not update $file"; }
+import json, re, sys
+action, path, hooks = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, encoding="utf-8") as f:
+    data = json.load(f)
+ours = lambda h: h.get("name") == "aidlc-plan-gate" or re.search(r"claude/hooks/plan-gate\.sh", h.get("command", "") or "")
+all_hooks = data.get("hooks") if isinstance(data.get("hooks"), dict) else None
+if all_hooks is not None and isinstance(all_hooks.get("BeforeTool"), list):
+    kept = []
+    for group in all_hooks["BeforeTool"]:
+        entries = group.get("hooks", []) or []
+        rest = [h for h in entries if not ours(h)]
+        if entries and not rest:
+            continue
+        group["hooks"] = rest
+        kept.append(group)
+    all_hooks["BeforeTool"] = kept
+if action == "add":
+    all_hooks = all_hooks if all_hooks is not None else {}
+    all_hooks.setdefault("BeforeTool", []).append({"matcher": "write_file|replace", "hooks": [
+        {"name": "aidlc-plan-gate", "type": "command", "command": 'bash "%s/plan-gate.sh"' % hooks, "timeout": 15000}]})
+    data["hooks"] = all_hooks
+elif all_hooks is not None:
+    if all_hooks.get("BeforeTool") == []:
+        del all_hooks["BeforeTool"]
+    if not all_hooks:
+        del data["hooks"]
+print(json.dumps(data, indent=2))
+PY
+  fi
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
+  json_valid "$file" || die "$file became invalid JSON; restore it from the backup"
+  if [ "$action" = remove ] && [ "$(tr -d ' \n\t' < "$file")" = "{}" ]; then rm -f "$file"; fi
+}

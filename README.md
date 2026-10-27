@@ -1,4 +1,4 @@
-# AI-DLC Kit v3.0
+# AI-DLC Kit v3.2
 
 **AI-Driven Development Lifecycle for every project and every AI agent, with a brain that learns.**
 The agent analyzes, asks questions, thinks the plan through, and waits for your approval. Only then does it
@@ -7,8 +7,10 @@ what it learned, with proof, and reads those lessons before the next task.
 
 Works with **Claude Code**, **Google Antigravity**, **Gemini CLI**, **Gemini in Android Studio** and any
 agent that reads `AGENTS.md`. Architecture standards: **Flutter house standard v3** (built from a production
-app, with complete compile-checked code), **native Android** and **native iOS** (proposed), and a generic
-standard generated from any other codebase.
+app, with complete compile-checked code), **native Android** and **native iOS** (proposed), **backends**
+(Node.js / TypeScript, Python, Laravel: detected by themselves, their standard written from their own code) and
+a generic standard generated from any other codebase. Each repository is one project: an app and its backend
+are set up separately.
 
 ```
  Your request
@@ -28,7 +30,8 @@ standard generated from any other codebase.
 ```
 
 ## What you get
-- **Plan first, always.** No file changes without an approved plan. Claude Code enforces it with a hook.
+- **Plan first, always.** No file changes without an approved plan. Claude Code, Antigravity and Gemini CLI
+  enforce it with a hook (the same plan gate).
 - **Questions before every plan**, multiple choice with a ★ recommendation. Nothing is guessed.
 - **Every stage is proven, not just promised:** before you see a plan, `verify-plan.sh` checks that the earlier
   stages were approved, that every user story has a file or task and a test, every NFR a named check, and that
@@ -77,8 +80,9 @@ bash ~/.aidlc-kit/init-project.sh ~/StudioProjects/MyApp
 # 3. Commit the pack
 cd ~/StudioProjects/MyApp && git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc-docs .gitignore && git commit -m "chore: add AI-DLC"
 ```
-A new app in an empty folder: add `--standard flutter` (or `android`, `ios`) in step 2, because there is
-nothing to detect yet.
+A new app or backend in an empty folder: add `--standard flutter` (or `android`, `ios`, `backend`) in step 2,
+because there is nothing to detect yet. An existing backend needs nothing extra: Express, NestJS, Fastify, Koa,
+FastAPI, Django, Flask and Laravel are detected.
 
 ## Use it
 | Claude Code | Antigravity / Gemini | What happens |
@@ -112,12 +116,13 @@ aidlc-kit/
 │       │                       aidlc-release · aidlc-think · aidlc-reflect · aidlc-research · aidlc-prompt
 │       │                       aidlc-anti-hallucination
 │       └── templates/          24 templates (plans, reports, brain, research, question bank, …)
-├── standards/                  flutter (v3 + reference/ code) · android · ios · generic → project-architecture skill + 20-architecture rule
+├── standards/                  flutter (v3 + reference/ code) · android · ios · backend · generic → project-architecture skill + 20-architecture rule
 ├── brain/                      shared-brain starter: 28 verified lessons (updates refresh the ones you never edited)
-├── claude/                     Claude Code: /aidlc · aidlc-reviewer · hooks (plan gate, plan check, session, auto-format, learning hint) · doctor
+├── claude/                     Claude Code: /aidlc · aidlc-reviewer · hooks (plan gate, plan check, session, auto-format, learning hint) · doctor ·
+│                               antigravity.sh (Antigravity: plan gate, plan check; Gemini CLI uses plan-gate.sh)
 ├── global/                     plan-first rules for ~/.claude/CLAUDE.md and ~/.gemini/GEMINI.md
 ├── lib/kit.sh                  shared script helpers
-└── tests/                      run-tests.sh (432 checks) · flutter-standard-check.sh (compiles the Flutter standard)
+└── tests/                      run-tests.sh (487 checks) · flutter-standard-check.sh (compiles the Flutter standard)
 ```
 
 ## Settings (`~/.aidlc-kit/config` or environment variables)
@@ -182,7 +187,7 @@ bash ~/.aidlc-kit/tokens.sh ~/StudioProjects/MyApp
 sharing). In Claude Code: `/aidlc brain`.
 
 **Pause the plan gate for one Claude Code session:** start it with `AIDLC_ENFORCE=off claude`. To change it
-for good, edit `~/.aidlc-kit/config` (see Settings).
+for good (also for Antigravity and Gemini CLI), edit `~/.aidlc-kit/config` (see Settings).
 
 **Test the kit itself:** `bash tests/run-tests.sh` and `bash tests/flutter-standard-check.sh` (in the kit
 folder).

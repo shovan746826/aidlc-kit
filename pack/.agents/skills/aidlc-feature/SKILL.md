@@ -32,13 +32,16 @@ only gate. Say that you use light mode and why. Questions (F1) and the F4 approv
    models. **Recall:** read both brain indexes and open the lessons that match (`30-learning.md` §1).
 4. **Ask round 1** (question bank J, plus C/E/F/G/H where relevant): goal and user; entry point; screens and
    UI states; data and API contract; business rules and validation; edge cases; permissions; offline;
-   analytics; how the user will accept it. Record the answers. Ask more rounds until nothing blocking is left.
+   analytics; how the user will accept it. Backend: endpoints, payloads, error responses, authentication,
+   data changes and jobs instead of screens (question bank L). Record the answers. Ask more rounds until nothing
+   blocking is left.
    (Units of a new project: the stories are already in `aidlc-docs/project/03-requirements.md`; confirm and
    narrow them for this unit instead of asking everything again.)
 
 ## F2. Requirements → `requirements.md`
 Template `requirements.md`: user stories with Given/When/Then acceptance criteria (including error, empty
-and offline cases), UI states per screen, business rules, the non-functional requirements that matter here,
+and offline cases), UI states per screen (backend: the responses and errors per endpoint), business rules,
+the non-functional requirements that matter here,
 out of scope. Gate.
 
 ## F3. Integration plan → `integration-plan.md`

@@ -1,7 +1,7 @@
 ---
 name: aidlc
 description: AI-DLC entry point for Claude Code. Shows status and resumes work, installs or updates the AI-DLC pack in a project, and routes new-project, feature, bugfix, release and analysis requests to the project's .agents/skills. Use when the user types /aidlc, or asks to start, continue or check AI-DLC work.
-argument-hint: "[status | init [flutter|android|ios|generic] | analyze | new-project <idea> | feature <what> | bugfix <what> | release [version] | brain | learn | research <topic> | prompt <text> | tokens [work item] | architecture | verify [plan] | doctor]"
+argument-hint: "[status | init [flutter|android|ios|backend|generic] | analyze | new-project <idea> | feature <what> | bugfix <what> | release [version] | brain | learn | research <topic> | prompt <text> | tokens [work item] | architecture | verify [plan] | doctor]"
 ---
 
 # /aidlc: AI-DLC for Claude Code
@@ -17,12 +17,13 @@ Find the project root (`git rev-parse --show-toplevel`, else the current folder)
 
 - **Missing:** tell the user, in two or three lines, what the pack adds: `AGENTS.md` / `CLAUDE.md` /
   `GEMINI.md` sections, `.agents/` rules + skills + templates, `aidlc-docs/` state. Then offer to install it:
-  `bash ~/.aidlc-kit/init-project.sh "<project root>"`, adding `--standard flutter|android|ios|generic` to
+  `bash ~/.aidlc-kit/init-project.sh "<project root>"`, adding `--standard flutter|android|ios|backend|generic` to
   override detection. If the project has old rules in `.agents/rules/` (e.g. `agent-workflow.md`), explain
   `--migrate` (it archives them; their rules are already merged into the kit). Add `--dry-run` first if the
   user wants to preview. **Run it only after the user says yes.**
   **Empty folder (a new app):** the stack cannot be detected and the script stops. Ask which standard to use
-  (Flutter ★ / Android / iOS / other) and pass `--standard <name>`.
+  (Flutter ★ / Android / iOS / backend / other) and pass `--standard <name>`. Existing backends (Node.js,
+  Python, Laravel) are detected by themselves.
   After it runs: read `.agents/rules/00-aidlc-core.md`, `10-quality-gates.md` and `20-architecture.md` now.
   They load automatically from the next session via `CLAUDE.md`.
 - **Present:** make sure `.agents/rules/00-aidlc-core.md` is in your context (read it if not).

@@ -2,7 +2,8 @@
 # AI-DLC: instructions for every AI agent
 
 This project uses **AI-DLC** (AI-Driven Development Lifecycle).
-**Rule #1: plan first.** No file is created or changed without a plan the user approved.
+**Rule #1: plan first.** No file is created or changed without a plan the user approved. With the kit
+installed, Claude Code, Antigravity and Gemini CLI enforce it with a hook.
 
 Before doing anything else, read and follow these rule files, in this order:
 1. `.agents/rules/00-aidlc-core.md`: workflow, request routing, questions, approvals, live status
