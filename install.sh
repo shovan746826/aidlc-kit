@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # AI-DLC kit: install once per machine.
 #   • copies the kit to ~/.aidlc-kit (used by init-project.sh and the hooks)
-#   • Claude Code: /aidlc command, aidlc-reviewer agent, 5 hooks in settings.json, plan-first rule in CLAUDE.md
-#   • Antigravity / Gemini: plan-first rule in ~/.gemini/GEMINI.md; plan gate + plan check hooks in Antigravity's
-#     ~/.gemini/config/hooks.json; plan gate hook in Gemini CLI's ~/.gemini/settings.json
+#   • Claude Code: /aidlc command, 6 role agents (aidlc-analyst, -builder, -tester, -debugger, -researcher,
+#     -reviewer), 6 hooks in settings.json, plan-first rule in CLAUDE.md
+#   • Antigravity / Gemini: plan-first rule in ~/.gemini/GEMINI.md; the 6 role agents in ~/.gemini/config/agents/;
+#     plan gate + plan check hooks in Antigravity's ~/.gemini/config/hooks.json; plan gate hook in Gemini CLI's
+#     ~/.gemini/settings.json
 # Every file it changes is backed up first to ~/.aidlc-kit/backups/<time>/. Safe to run again (updates).
 set -euo pipefail
 
@@ -205,9 +207,11 @@ if [ "$DO_CLAUDE" = 1 ]; then
   cp -R "$KIT_HOME/claude/skills/aidlc" "$CLAUDE_DIR/skills/aidlc"
   say "✓ Claude Code command: /aidlc"
 
-  backup_to "$CLAUDE_DIR/agents/aidlc-reviewer.md" "$BACKUP/claude/agents/aidlc-reviewer.md"
-  cp "$KIT_HOME/claude/agents/aidlc-reviewer.md" "$CLAUDE_DIR/agents/aidlc-reviewer.md"
-  say "✓ Claude Code agent: aidlc-reviewer"
+  for name in $KIT_AGENTS; do
+    backup_to "$CLAUDE_DIR/agents/$name.md" "$BACKUP/claude/agents/$name.md"
+    cp "$KIT_HOME/claude/agents/$name.md" "$CLAUDE_DIR/agents/$name.md"
+  done
+  say "✓ Claude Code agents: aidlc-analyst · builder · tester · debugger · researcher · reviewer"
 
   # The v1 kit installed a Flutter-only reviewer; v2 replaces it.
   legacy="$CLAUDE_DIR/agents/flutter-reviewer.md"
@@ -221,7 +225,7 @@ if [ "$DO_CLAUDE" = 1 ]; then
     settings="$CLAUDE_DIR/settings.json"
     backup_to "$settings" "$BACKUP/claude/settings.json"
     settings_hooks add "$settings" "$KIT_HOME/claude/hooks"
-    say "✓ Claude Code hooks in $settings: plan gate · plan check · session start · auto-format (new files) · learning hint"
+    say "✓ Claude Code hooks in $settings: plan gate · plan check · session start · subagent start · auto-format (new files) · learning hint"
   fi
 
   tmp="$(mktemp)"
@@ -245,6 +249,13 @@ if [ "$DO_GEMINI" = 1 ]; then
   fi
   rm -f "$tmp"
   say "✓ plan-first rule for every project (Antigravity / Gemini): $GEMINI_DIR/GEMINI.md"
+  for name in $KIT_AGENTS; do
+    dst="$GEMINI_DIR/config/agents/$name/agent.md"
+    backup_to "$dst" "$BACKUP/gemini/config/agents/$name/agent.md"
+    mkdir -p "$(dirname "$dst")"
+    antigravity_agent "$KIT_HOME/claude/agents/$name.md" > "$dst"
+  done
+  say "✓ Antigravity agents in $GEMINI_DIR/config/agents/: aidlc-analyst · builder · tester · debugger · researcher · reviewer"
   if [ "$DO_HOOKS" = 1 ]; then
     mkdir -p "$GEMINI_DIR/config"
     backup_to "$GEMINI_DIR/config/hooks.json" "$BACKUP/gemini/config/hooks.json"

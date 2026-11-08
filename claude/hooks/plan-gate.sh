@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # AI-DLC kit: plan gate. Claude Code PreToolUse hook for Edit|Write|MultiEdit|NotebookEdit.
-# Blocks changes to project files unless an approved plan lists them.
+# Blocks changes to project files unless an approved plan lists them. Inside a subagent (the hook input has an
+# agent_id), planning files are the lead agent's only and the read-only roles change nothing but their notes.
 # Exit 0 = allow · exit 2 = block (the message on stderr is shown to Claude).
 #
 # Settings (environment variable or ~/.aidlc-kit/config):
@@ -42,6 +43,20 @@ Set it up first (/aidlc init, or: bash ~/.aidlc-kit/init-project.sh \"$repo\"), 
 fi
 
 rel="${file#"$root"/}"
+
+# A helper agent (aidlc-multi-agent skill): only the lead changes planning files; read-only roles only their notes.
+if [ -n "$(json_get "$input" .agent_id)" ]; then
+  agent="$(json_get "$input" .agent_type)"; agent="${agent:-subagent}"
+  case "$rel" in aidlc-docs/work/*/agents/*) exit 0 ;; esac   # the helper's notes
+  is_governance "$rel" && block "$rel" "Only the lead agent changes plans, the state file, the audit log, rules and the brain. You are a helper ($agent):
+put your findings in your notes (aidlc-docs/work/<item>/agents/<task>-<role>.md) and in your result card."
+  case "$agent" in
+    aidlc-analyst|aidlc-tester|aidlc-debugger|aidlc-researcher|aidlc-reviewer)
+      block "$rel" "The $agent role is read-only: it changes only its notes (aidlc-docs/work/<item>/agents/).
+Put the change you propose in your result card; the lead or a builder makes it." ;;
+  esac
+fi
+
 if is_governance "$rel"; then
   is_kit_owned "$rel" "$file" || exit 0   # planning documents and project-owned rules: no plan needed
   KIT_NOTE="Note: $rel belongs to the AI-DLC kit and is replaced on every kit update. Project rules go into a new file in .agents/rules/; the shared brain changes only through brain.sh."

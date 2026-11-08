@@ -16,7 +16,9 @@ Claude Code notes:
   in `00-aidlc-core.md` names. The `/aidlc` command (installed by the kit) does this routing for you.
 - When the AI-DLC hooks are installed, edits to project files are blocked unless the approved plan lists
   them. If an edit is blocked, follow the message. Never work around the gate.
-- For review and gap analysis, use the `aidlc-reviewer` agent if it is available.
+- For review and gap analysis, use the `aidlc-reviewer` agent if it is available. The kit's other agents
+  (`aidlc-analyst`, `aidlc-builder`, `aidlc-tester`, `aidlc-debugger`, `aidlc-researcher`) work by
+  `.agents/skills/aidlc-multi-agent/SKILL.md`; you stay the lead, because subagents can't ask the user.
 - For question rounds you may use the AskUserQuestion tool (up to 4 questions per call). Still record every
   answer in `questions.md`.
 - When you write a plan, a hook runs `verify-plan.sh` on it and shows you invented paths, classes or IDs:

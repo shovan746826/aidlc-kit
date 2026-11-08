@@ -20,6 +20,8 @@ description: Carry out an implementation, bug-fix or release plan that the user 
 | C6 Complete | Completion report, knowledge retention, close the gate | user confirms |
 
 Update `stage:` in the state file at every stage.
+**Several agents:** if the plan's Agent plan is `pipeline` or `parallel`, run these stages with
+`.agents/skills/aidlc-multi-agent/SKILL.md` (M5): the same stages, gates and checks, with helpers doing parts.
 
 ## C1. Baseline
 Run the verification commands from the profile before changing anything and record the results
@@ -118,7 +120,8 @@ publishing is always done by the user, or by you only after the user approves th
 ## Resuming
 Re-ground first (`50-anti-hallucination.md` §4): read the brief, the plan and the state file again. Continue at
 the first task that is not ✅. Run the quick check first. If the code on disk does not match the statuses,
-tell the user before you continue.
+tell the user before you continue. A task `🔄 [IN PROGRESS]` that a helper agent had: read its notes and the
+`git diff` of its files first (`aidlc-multi-agent` M8).
 
 ## Rules
 - Never mark a task ✅ that is not done. Never mark a work item done while verification fails.

@@ -186,6 +186,46 @@ gate). The first time, it then asks **which architecture AI-DLC should follow** 
 Every later plan follows the chosen standard: its new-feature checklist gives the plan's phases and files. To
 choose again later: `/aidlc architecture`, or "keep my architecture" / "use the AI-DLC architecture".
 
+### 4.8 Several agents at once (`aidlc-multi-agent`)
+The agent you talk to is the **lead**. For bigger work it starts **helper agents** that work at the same time:
+one prepares the next step while another builds the current one, a tester runs the checks, a debugger finds the
+cause of a failure. Only the lead asks you questions, shows gates, records approvals and changes the plan.
+
+| Role | Job | Changes |
+|---|---|---|
+| `aidlc-analyst` | prepares the next task (files, definitions, callers, exact edits, risks, the test to write); maps an area for planning | its notes |
+| `aidlc-builder` | builds one task, test first, only in the files it owns | the task's files |
+| `aidlc-tester` | the baseline, the phase checks, the full verification | its notes |
+| `aidlc-debugger` | the root cause of a failure with `path:line`, and the smallest fix | its notes |
+| `aidlc-researcher` | sources and findings for a decision | its notes |
+| `aidlc-reviewer` | the independent review (C4) | nothing |
+
+**Modes.** Every full plan has an **Agent plan** line in its task plan, and you approve it with the plan:
+`single` (one agent: light plans, small fixes) · `pipeline` (one builder at a time; the analyst works one task
+ahead, the tester and the debugger beside it) · `parallel` (up to 3 builders at once, only on tasks that share
+no file). A task that must wait says so: `· needs: T1, T2`. `verify-plan.sh` checks that the needs name real
+tasks and make no loop and, in parallel mode, that tasks which can run at the same time never change the same
+file.
+
+**Cards.** The lead starts a helper with a *handoff* card (goal, what to read, the files it owns, done when) and
+gets back a *result* card (DONE · BLOCKED · FAILED, the changed files, the evidence, the findings). Long findings
+go to `aidlc-docs/work/<item>/agents/`, so the lead's context stays small. The lead checks the evidence (the
+diff, the check's output) before it marks a task ✅.
+
+**Safety.** In Claude Code the plan gate also runs for every subagent: a helper can't change the plan, the state
+file, the audit log, the rules or the brain, and the read-only roles can't change code (§7). Every other subagent,
+built-in ones like Explore included, gets the helper rules when it starts (a `SubagentStart` hook). In Antigravity
+the roles are custom subagents in `~/.gemini/config/agents/`, and the read-only ones have no file-writing tools.
+
+**Tokens.** Helpers cost tokens of their own, so the lead uses them only where they pay: wide reading, long test
+output, real parallel work. The read-only roles start without CLAUDE.md and read only what their handoff names.
+All roles use your main model. `tokens.sh` counts the subagents too.
+
+**Your check in Antigravity.** Ask "use the aidlc-analyst subagent to analyze lib/main.dart": it answers with an
+"AI-DLC result" card. Then, with no approved plan, ask "use the aidlc-builder subagent to add a comment to
+lib/main.dart": the edit must be blocked. If it is not, Antigravity doesn't run hooks inside subagents: there,
+build in the main agent and use helpers only to read.
+
 ## 5. Answering questions
 
 Questions come in rounds (at most 10), each with options and a ★ recommendation:
@@ -238,6 +278,7 @@ turns the gate's answer into Antigravity's `allow` / `deny`. All three agents ge
 | Gate open, but the plan still says `DRAFT` (or has no status line) | **blocked**: "not approved" |
 | Gate open, file not listed | **blocked**: "use the plan change procedure" |
 | Project without the pack | allowed (unless `AIDLC_ENFORCE=all-repos`) |
+| An edit by a helper agent (a Claude Code subagent: the hook input has `agent_id`) | plans, the state file, the audit log, rules and the brain: **blocked** (only the lead changes them); its notes in `aidlc-docs/work/<item>/agents/`: allowed; the read-only roles (analyst, tester, debugger, researcher, reviewer): code **blocked** |
 
 Plan entries can be exact paths (`lib/a.dart`), folders ending in `/` (`assets/images/`) or globs
 (`lib/features/budget/**`). Prefer exact paths. Only the **Path** column counts (one or more paths in
@@ -260,7 +301,8 @@ rules, not blocked by the hook; `verify-plan.sh --done` still finds such changes
 Android Studio has no hooks: there the always-on rules apply. In Antigravity, `AIDLC_ENFORCE=off` in
 `~/.aidlc-kit/config` pauses the gate (there is no per-session variable as in Claude Code).
 
-**Antigravity** reads the hooks from `~/.gemini/config/hooks.json` (installed by `install.sh`): `aidlc-plan-gate`
+**Antigravity** (the app, the IDE and the Antigravity CLI, which replaced Gemini CLI for personal Google
+accounts on 2026-06-18) reads the hooks from `~/.gemini/config/hooks.json` (installed by `install.sh`): `aidlc-plan-gate`
 on `write_to_file`, `replace_file_content` and `multi_replace_file_content`, and `aidlc-plan-check` when the
 agent ends its turn. **Your one-minute check:** open an AI-DLC project in Antigravity, and with no approved plan
 ask the agent to change a source file: the edit is refused with "AI-DLC plan gate: blocked a change to …".
@@ -279,8 +321,8 @@ ask the agent to change a source file: the edit is refused with "AI-DLC plan gat
 │   ├── rules/30-learning.md                    kit: the brain rules
 │   ├── rules/40-token-efficiency.md            kit: the token rule (brief, lean context)
 │   ├── rules/50-anti-hallucination.md          kit: evidence for every claim, plan check
-│   ├── skills/<11 workflow skills>/SKILL.md    kit (incl. aidlc-think, aidlc-reflect, aidlc-research, aidlc-prompt,
-│   │                                           aidlc-anti-hallucination)
+│   ├── skills/<12 workflow skills>/SKILL.md    kit (incl. aidlc-think, aidlc-reflect, aidlc-research, aidlc-prompt,
+│   │                                           aidlc-anti-hallucination, aidlc-multi-agent)
 │   ├── brain/shared/                           kit: copy of the shared brain (read-only)
 │   ├── templates/                              kit: 24 templates
 │   ├── .aidlc-version                          kit version + standard
@@ -293,7 +335,7 @@ ask the agent to change a source file: the edit is refused with "AI-DLC plan gat
     ├── brain/                    INDEX.md · inbox.md · metrics.md · lessons/ · research/
     ├── project/                  new project: 01-project-brief … 06-delivery-plan, questions.md, decisions/
     ├── work/<NNN>-<type>-<slug>/ questions, requirements, integration plan, implementation_plan.md or
-    │                             bugfix_plan.md, test-report.md, review-report.md
+    │                             bugfix_plan.md, test-report.md, review-report.md, agents/ (helper notes)
     └── releases/<version>/       release-plan.md, test-report.md
 ```
 **Kit-owned** files are replaced when you update (your edits are backed up first). **Project-owned** files

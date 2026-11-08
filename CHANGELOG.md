@@ -1,5 +1,34 @@
 # Changelog
 
+## 3.3.0 (2026-11-08)
+
+**Several agents at once: the multi-agent protocol.** The agent you talk to is the lead; helper agents work
+beside it. One prepares the next step while another builds the current one, a tester runs the checks, a debugger
+finds the cause of a failure. Plan first and every gate stay exactly as before.
+- **6 role agents**, one source file each in `claude/agents/`: `aidlc-analyst`, `aidlc-builder`, `aidlc-tester`,
+  `aidlc-debugger`, `aidlc-researcher` and the existing `aidlc-reviewer`. `install.sh` puts them in
+  `~/.claude/agents/` and renders them as Antigravity custom subagents in `~/.gemini/config/agents/<name>/agent.md`
+  (documented tool names only; the read-only roles get no file-writing tools there). All roles use the main
+  model; the read-only roles start without CLAUDE.md (`omitClaudeMd`) and read only what their handoff names.
+  No role can start other agents.
+- **Skill `aidlc-multi-agent`** for the lead: the modes (`single`, `pipeline`, `parallel`), the roles, the
+  handoff and result cards, the loop for planning, bug fixes and construction, checking every result, parallel
+  builders, blocked or lost helpers, and notes for Claude Code and Antigravity. Core rules: a routing row and
+  §11 "Several agents"; construction, feature and bug-fix skills point to it.
+- **Plan templates:** an **Agent plan** line in the task plan, approved with the plan, and `· needs: T1, T2` on
+  tasks that must wait (the example tasks follow diagram 6a).
+- **`verify-plan.sh`:** the Agent plan value; `needs:` name real tasks and make no loop; in parallel mode, tasks
+  that can run at the same time never change the same file (with "add needs:" advice), and the waves.
+- **Plan gate inside subagents** (Claude Code passes `agent_id` and `agent_type`): only the lead changes plans,
+  the state file, the audit log, rules and the brain; a helper may write its notes in
+  `aidlc-docs/work/<item>/agents/`; the read-only roles never change code.
+- **New `SubagentStart` hook:** every other subagent in an AI-DLC project (built-in ones like Explore included)
+  gets the helper rules when it starts.
+- `doctor.sh` reports the agents for both tools and the new hook; `uninstall.sh` removes the agents and keeps
+  yours. GUIDE §4.8 "Several agents at once"; §7 notes that the Antigravity CLI reads the same hooks file.
+- Tests: section 16 (roles, the Antigravity render, the gate's helper rules, SubagentStart, the Agent plan
+  checks, the pack); install and uninstall checks for the agents.
+
 ## 3.2.0 (2026-10-27)
 
 **The plan gate works in Antigravity and Gemini CLI too.** Both now have hooks (official docs: Antigravity

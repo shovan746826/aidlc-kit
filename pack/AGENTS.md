@@ -19,7 +19,8 @@ Then:
 - **Architecture standard** (read before any planning or code): `.agents/skills/project-architecture/SKILL.md`
 - **Workflow skills:** `.agents/skills/`: `project-analysis`, `aidlc-new-project`, `aidlc-feature`,
   `aidlc-bugfix`, `aidlc-construction`, `aidlc-release`,
-  `aidlc-think`, `aidlc-reflect`, `aidlc-research`, `aidlc-prompt`, `aidlc-anti-hallucination`
+  `aidlc-think`, `aidlc-reflect`, `aidlc-research`, `aidlc-prompt`, `aidlc-anti-hallucination`,
+  `aidlc-multi-agent` (helper agents: analyst, builder, tester, debugger, researcher, reviewer)
 - **Document templates:** `.agents/templates/`
 - **All analyses, plans and reports:** `aidlc-docs/`
 <!-- AIDLC:END -->

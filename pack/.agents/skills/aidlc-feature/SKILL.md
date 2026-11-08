@@ -30,6 +30,7 @@ only gate. Say that you use light mode and why. Questions (F1) and the F4 approv
 3. Read the code involved before asking: similar features (the reference implementation if the profile
    names one, or the architecture skill's reference files in `reference/`, if it has them), routes, state holders, URL config, shared widgets,
    models. **Recall:** read both brain indexes and open the lessons that match (`30-learning.md` §1).
+   A wide or unfamiliar area: analyst agents can map its parts at the same time (`aidlc-multi-agent` M5).
 4. **Ask round 1** (question bank J, plus C/E/F/G/H where relevant): goal and user; entry point; screens and
    UI states; data and API contract; business rules and validation; edge cases; permissions; offline;
    analytics; how the user will accept it. Backend: endpoints, payloads, error responses, authentication,
@@ -62,7 +63,9 @@ Gate.
 2. Files tables: every file with its full path, including tests and every config file you will edit
    (router, URL config, `pubspec.yaml`, platform manifests). The plan gate allows only these files.
 3. Task plan phases in the order of the architecture skill's new-feature checklist (default: Data → Business
-   logic → Presentation → Integration → Tests and verification), all ⏳.
+   logic → Presentation → Integration → Tests and verification), all ⏳. Write the **Agent plan** line
+   (`single`, `pipeline` or `parallel`, with its reason: `aidlc-multi-agent` M1) and `· needs: T…` on every task
+   that must wait for others.
    Under every task write **How** (file, change, key code shape), **Why** (requirement, standard section or
    lesson) and **Check** (how you will know it works).
 3b. Draw the three diagrams of section 6 from the real tasks and files: plan flow, file map, runtime flow

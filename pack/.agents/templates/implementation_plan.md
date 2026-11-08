@@ -160,6 +160,12 @@ screenshots) and the stories it covers; its output is the evidence in `test-repo
 <!-- Under every task: How (the approach: file, change, key code shape), Why (the requirement, standard section
      or lesson behind it), Check (how you will know it works). Three short lines; the examples show the level.
      Logic tasks (models, repositories, controllers, notifiers, utilities) are built test first (construction C2). -->
+**Agent plan:** pipeline · roles: builder, analyst (one task ahead), tester, reviewer · reason: …
+<!-- Agent plan (.agents/skills/aidlc-multi-agent/SKILL.md M1): single (one agent: light plans, small fixes) ·
+     pipeline (one builder at a time; an analyst prepares the next task; a tester and a debugger work beside it) ·
+     parallel (up to 3 builders at once, on tasks that share no file). "· needs: T1, T2" at the end of a task line:
+     it starts only after those tasks (the arrows of diagram 6a). verify-plan.sh checks the needs and, in
+     parallel mode, that tasks which can run at the same time never change the same file. -->
 ### Phase 1: Data layer
 - [ ] ⏳ **[PENDING]** T1 Create response model `lib/features/items/model/response/item_list_response_model.dart`
   - How: `fromJson`/`toJson` for the JSON sample in §7, nullable fields, the JSON sample comment on top
@@ -169,27 +175,27 @@ screenshots) and the stories it covers; its output is the evidence in `test-repo
   - How: one constant `itemsUrl` next to the other feature URLs
   - Why: URLs live in one place (standard §9)
   - Check: analyzer clean; the repository test uses the constant
-- [ ] ⏳ **[PENDING]** T3 Create repository `lib/features/items/repository/items_repository.dart`
+- [ ] ⏳ **[PENDING]** T3 Create repository `lib/features/items/repository/items_repository.dart` · needs: T1, T2
   - How: one method per endpoint with `ApiRequest.send`; errors become a model with the message
   - Why: no try/catch in controllers; the interceptor adds the headers (standard §9)
   - Check: a repository test with `FakeAdapter`: 200 → data, 500 → error model
 
 ### Phase 2: Business logic layer
-- [ ] ⏳ **[PENDING]** T4 Create controller
+- [ ] ⏳ **[PENDING]** T4 Create controller · needs: T3
   - How: … · Why: … · Check: …
-- [ ] ⏳ **[PENDING]** T5 Create provider(s)
+- [ ] ⏳ **[PENDING]** T5 Create provider(s) · needs: T4
   - How: … · Why: … · Check: …
 
 ### Phase 3: Presentation layer
-- [ ] ⏳ **[PENDING]** T6 Create screen (page): scaffolding and composition only
+- [ ] ⏳ **[PENDING]** T6 Create screen (page): scaffolding and composition only · needs: T5
   - How: … · Why: … · Check: …
-- [ ] ⏳ **[PENDING]** T7 Create component(s)
+- [ ] ⏳ **[PENDING]** T7 Create component(s) · needs: T6
   - How: … · Why: … · Check: …
 
 ### Phase 4: Integration
-- [ ] ⏳ **[PENDING]** T8 Add the route and RouterPath entry
+- [ ] ⏳ **[PENDING]** T8 Add the route and RouterPath entry · needs: T7
   - How: … · Why: … · Check: …
-- [ ] ⏳ **[PENDING]** T9 Wire navigation from the calling screen
+- [ ] ⏳ **[PENDING]** T9 Wire navigation from the calling screen · needs: T8
   - How: … · Why: … · Check: …
 
 ### Phase 5: Tests and verification

@@ -82,6 +82,9 @@ Rollback: …
 
 ## 11. Task plan
 <!-- Under every task: How (file, change, key code shape), Why (the root cause or rule), Check (the proof). -->
+**Agent plan:** single · reason: one small fix
+<!-- single (one agent) for most fixes · pipeline: a tester runs the suite and an analyst checks the blast radius
+     while you fix (.agents/skills/aidlc-multi-agent/SKILL.md M1) -->
 ### Phase 1: Regression test
 - [ ] ⏳ **[PENDING]** T1 Write the regression test and confirm that it fails
   - How: `test/…/<name>_test.dart` builds the failing case from §2 (e.g. total = 0)

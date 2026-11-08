@@ -44,8 +44,21 @@ else err "neither jq nor python3 found: the hooks cannot read their input and le
 echo "    settings: AIDLC_ENFORCE=$(aidlc_config AIDLC_ENFORCE project) · AIDLC_GATE_SCOPE=$(aidlc_config AIDLC_GATE_SCOPE plan-files) · AIDLC_AUTOFORMAT=$(aidlc_config AIDLC_AUTOFORMAT new-files) · AIDLC_LEARN_HINTS=$(aidlc_config AIDLC_LEARN_HINTS on)"
 
 if [ -f "$CLAUDE_DIR/skills/aidlc/SKILL.md" ]; then ok "Claude Code: /aidlc command"; else warn "Claude Code: /aidlc command not installed (run install.sh)"; fi
-if [ -f "$CLAUDE_DIR/agents/aidlc-reviewer.md" ]; then ok "Claude Code: aidlc-reviewer agent"; else warn "Claude Code: aidlc-reviewer agent not installed"; fi
-for h in plan-gate plan-check session-start auto-format learn-hint; do
+# The role agents: one file per role in the kit (claude/agents/aidlc-*.md), installed for Claude Code and Antigravity.
+n_roles=0; cc_miss=""; cc_old=""; agy_miss=""
+for src in "$KIT_HOME"/claude/agents/aidlc-*.md; do
+  [ -f "$src" ] || continue
+  name="$(basename "$src" .md)"; n_roles=$((n_roles + 1))
+  if [ ! -f "$CLAUDE_DIR/agents/$name.md" ]; then cc_miss="$cc_miss $name"
+  elif ! cmp -s "$src" "$CLAUDE_DIR/agents/$name.md"; then cc_old="$cc_old $name"; fi
+  [ -f "$GEMINI_DIR/config/agents/$name/agent.md" ] || agy_miss="$agy_miss $name"
+done
+if [ -n "$cc_miss" ]; then warn "Claude Code agents not installed:$cc_miss (run install.sh)"
+elif [ -n "$cc_old" ]; then warn "Claude Code agents differ from the kit:$cc_old (run install.sh to update them)"
+else ok "Claude Code agents: $n_roles roles (analyst, builder, tester, debugger, researcher, reviewer)"; fi
+if [ -n "$agy_miss" ]; then warn "Antigravity agents not installed:$agy_miss (run install.sh)"
+else ok "Antigravity agents: $n_roles roles in $GEMINI_DIR/config/agents/"; fi
+for h in plan-gate plan-check session-start subagent-start auto-format learn-hint; do
   if grep -q "claude/hooks/$h.sh" "$CLAUDE_DIR/settings.json" 2>/dev/null; then
     if [ -f "$KIT_HOME/claude/hooks/$h.sh" ]; then ok "Claude Code hook registered: $h"; else err "hook $h is registered but $KIT_HOME/claude/hooks/$h.sh is missing"; fi
   else
@@ -82,7 +95,7 @@ if [ "$machine_only" = 0 ]; then
     done
     missing=""
     for s in project-analysis aidlc-new-project aidlc-feature aidlc-bugfix aidlc-construction aidlc-release \
-             aidlc-think aidlc-reflect aidlc-research aidlc-prompt aidlc-anti-hallucination; do
+             aidlc-think aidlc-reflect aidlc-research aidlc-prompt aidlc-anti-hallucination aidlc-multi-agent; do
       [ -f "$root/.agents/skills/$s/SKILL.md" ] || missing="$missing $s"
     done
     if [ -z "$missing" ]; then ok "workflow skills (11)"; else err "missing skills:$missing"; fi

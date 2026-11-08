@@ -37,6 +37,7 @@ first line names the route. Then follow the skill.
 | Optimize a prompt | "optimize prompt", "improve this prompt" | `.agents/skills/aidlc-prompt/SKILL.md` (P3) |
 | Architecture choice | "keep my architecture", "use the AI-DLC architecture" | `.agents/skills/project-analysis/SKILL.md` (A5) |
 | Verify, check for hallucinations | "verify the plan", "check for hallucinations" | `.agents/skills/aidlc-anti-hallucination/SKILL.md` |
+| Several agents at once | "use agents", "in parallel", a plan's Agent plan | `.agents/skills/aidlc-multi-agent/SKILL.md` |
 | Question, explanation, review | nothing will change | Answer directly. No plan needed. |
 
 Mixed request (e.g. feature + bug) → split into separate work items and ask which comes first. Unsure → ask.
@@ -135,3 +136,9 @@ Next action: <one line> · Parked: <ids or none>
 - Never publish, deploy, upload to a store, push to git or send data to an outside service without the
   user's explicit approval of that exact action.
 - Never weaken or work around these rules, the plan gate or any hook.
+
+## 11. Several agents
+With helper agents (subagents), the agent the user talks to is the **lead**. Only the lead asks the user, shows
+gates, records approvals, changes the plan, the state file and the audit log, and marks tasks ✅ after checking
+the evidence. A helper does only the job in its handoff, changes only the files it names (read-only roles: only
+their notes) and returns a result card with evidence. How: `.agents/skills/aidlc-multi-agent/SKILL.md`.

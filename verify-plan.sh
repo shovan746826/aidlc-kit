@@ -9,6 +9,7 @@
 #   • Facts and assumptions: "verified" rows show evidence, no row is "unknown" (assumptions are listed)
 #   • stages (draft plans): the documents before the plan are approved; every user story (US-n) has a test and a
 #     file or task, every NFR-n a named check; no [OPEN-BLOCKING] item is left
+#   • Agent plan: single | pipeline | parallel; "needs:" name real tasks, no loops; parallel tasks share no file
 #   --quick     files, classes and IDs only (the Claude Code hook uses it while a plan is being written)
 #   --baseline  before building (C1): records the files that already have uncommitted changes (git-baseline.txt)
 #   --done      after building: every planned file exists, nothing outside the plan changed (git), every numbered
@@ -19,7 +20,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=claude/hooks/lib.sh
 . "$KIT/claude/hooks/lib.sh"
 
-usage() { sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 plan=""; mode="full"
 while [ $# -gt 0 ]; do
@@ -410,6 +411,87 @@ $(open_items "$f")
 EOF
   done
   [ "$n_open" = 0 ] && ok "no open blocking item"
+fi
+
+# 4c. Agent plan (aidlc-multi-agent): the mode, the task order ("needs:") and, in parallel mode, who owns which file -
+# plan_tasks <plan>: "id<TAB>needs<TAB>paths" per numbered task line of §14 (needs and paths space-separated). The
+# paths are the backticked files in the task's own line, before "needs:" (its How, Why, Check lines don't count).
+plan_tasks() {
+  awk '
+    /^[[:space:]]*- \[[ xX]\] .*\*\*\[[A-Z ]+\]\*\*[[:space:]]+T[0-9]+/ {
+      s = $0; sub(/^.*\*\*\[[A-Z ]+\]\*\*[[:space:]]+/, "", s)
+      if (!match(s, /^T[0-9]+/)) next
+      id = substr(s, 1, RLENGTH); needs = ""; files = ""
+      if (match(s, /needs:[ \t]*T[0-9]+([ \t]*,?[ \t]*T[0-9]+)*/)) {
+        nd = substr(s, RSTART + 6, RLENGTH - 6); s = substr(s, 1, RSTART - 1)
+        while (match(nd, /T[0-9]+/)) { needs = needs " " substr(nd, RSTART, RLENGTH); nd = substr(nd, RSTART + RLENGTH) }
+      }
+      while ((a = index(s, "`")) > 0) {
+        s = substr(s, a + 1); b = index(s, "`"); if (b == 0) break
+        tok = substr(s, 1, b - 1); s = substr(s, b + 1); sub(/^\.\//, "", tok)
+        if (tok ~ /\// || tok ~ /\.[A-Za-z0-9]+$/) files = files " " tok
+      }
+      print id "\t" substr(needs, 2) "\t" substr(files, 2)
+    }
+  ' "$1" 2>/dev/null
+}
+
+# agent_checks <mode>: plan_tasks lines on stdin → "BAD|WARN|OK<TAB>message": needs point to real tasks and make no
+# loop; in parallel mode, two tasks that can run at the same time never change the same file.
+agent_checks() {
+  awk -F '\t' -v mode="$1" '
+  NF == 0 || $1 == "" { next }
+  {
+    n++; id[n] = $1
+    if ($1 in at) printf "BAD\ttask %s appears twice in §14: give every task its own number\n", $1
+    at[$1] = n; nn[n] = split($2, need, " "); for (k = 1; k <= nn[n]; k++) nd[n, k] = need[k]
+    nf[n] = split($3, f, " "); for (k = 1; k <= nf[n]; k++) fl[n, k] = f[k]
+  }
+  END {
+    for (i = 1; i <= n; i++) for (k = 1; k <= nn[i]; k++) {
+      t = nd[i, k]
+      if (t == id[i]) printf "BAD\t%s needs itself: remove it from its needs\n", t
+      else if (!(t in at)) printf "BAD\t%s needs %s, which is not a task in §14\n", id[i], t
+      else r[i, at[t]] = 1
+    }
+    for (k = 1; k <= n; k++) for (i = 1; i <= n; i++) if (r[i, k]) for (j = 1; j <= n; j++) if (r[k, j]) r[i, j] = 1
+    loop = ""; for (i = 1; i <= n; i++) if (r[i, i]) loop = loop " " id[i]
+    if (loop != "") { printf "BAD\tthese tasks wait for each other in a loop (needs):%s\n", loop; exit }
+    if (mode == "parallel") {
+      for (i = 1; i <= n; i++) if (nf[i] == 0) printf "WARN\t%s names no file in its line: the lead cannot tell which files it owns\n", id[i]
+      for (i = 1; i < n; i++) for (j = i + 1; j <= n; j++) {
+        if (r[i, j] || r[j, i]) continue
+        for (a = 1; a <= nf[i]; a++) for (b = 1; b <= nf[j]; b++) if (fl[i, a] == fl[j, b])
+          printf "BAD\t%s and %s can run at the same time but both change `%s`: add \"needs: %s\" to %s, or merge them\n", id[i], id[j], fl[i, a], id[i], id[j]
+      }
+    }
+    # waves: a task starts when everything it needs is done
+    for (pass = 1; pass <= n; pass++) for (i = 1; i <= n; i++) {
+      w = 1; for (k = 1; k <= nn[i]; k++) if (nd[i, k] in at && wave[at[nd[i, k]]] + 1 > w) w = wave[at[nd[i, k]]] + 1
+      wave[i] = w
+    }
+    most = 0; waves = 0
+    for (i = 1; i <= n; i++) { cnt[wave[i]]++; if (wave[i] > waves) waves = wave[i] }
+    for (w = 1; w <= waves; w++) if (cnt[w] > most) most = cnt[w]
+    if (mode == "parallel") printf "OK\tagent plan: parallel · %d task(s) in %d wave(s), up to %d at once by their needs\n", n, waves, most
+    else printf "OK\tagent plan: %s · %d task(s), their needs checked\n", mode, n
+  }'
+}
+
+if [ "$mode" = "full" ]; then
+  agent_mode="$(header_value "$plan" "Agent plan")"
+  tasks="$(plan_tasks "$plan")"
+  if [ -n "$agent_mode" ] || printf '%s\n' "$tasks" | awk -F '\t' '$2 != "" { found = 1 } END { exit !found }'; then
+    case "$agent_mode" in
+      ''|single|pipeline|parallel) ;;
+      *) bad "Agent plan must be single, pipeline or parallel (found: $agent_mode)"; agent_mode="" ;;
+    esac
+    while IFS="$(printf '\t')" read -r kind msg; do
+      case "$kind" in BAD) bad "$msg" ;; WARN) warn "$msg" ;; OK) ok "$msg" ;; esac
+    done <<EOF
+$(printf '%s\n' "$tasks" | agent_checks "${agent_mode:-none}")
+EOF
+  fi
 fi
 
 # 5. After the build: nothing outside the plan changed ---------------------------------------------------------------

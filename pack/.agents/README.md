@@ -23,6 +23,7 @@ how to work in this project: plan first, ask before planning, wait for approval,
 | `skills/aidlc-research/` | Research protocol: official sources first, saved notes | kit |
 | `skills/aidlc-prompt/` | Prompt optimizer: the task brief and the prompt rewriter | kit |
 | `skills/aidlc-anti-hallucination/` | Full anti-hallucination protocol for large or complex work | kit |
+| `skills/aidlc-multi-agent/` | Helper agents: modes, roles, handoff and result cards, checking results | kit |
 | `brain/shared/` | Copy of the shared brain (lessons for all projects), read-only | kit |
 | `templates/` | Templates for every AI-DLC document | kit |
 | `.aidlc-version` | Kit version and standard installed here | kit |

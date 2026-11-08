@@ -81,7 +81,7 @@ done
 n="$(ls "$KIT/pack/.agents/templates/"*.md | wc -l | tr -d ' ')"
 expect_rc "24 templates" 24 "$n"
 n="$(ls -d "$KIT"/pack/.agents/skills/*/ | wc -l | tr -d ' ')"
-expect_rc "11 workflow skills in the pack" 11 "$n"
+expect_rc "12 workflow skills in the pack" 12 "$n"
 PA="$KIT/pack/.agents/skills/project-analysis/SKILL.md"; AS="$KIT/pack/.agents/templates/architecture-standard.md"
 check "analysis ends with the architecture choice (A5: yours, AI-DLC, mix)" sh -c \
   "grep -q '^## A5. Architecture choice' '$PA' && grep -q 'A) Your architecture' '$PA' && grep -q 'B) The AI-DLC standard' '$PA' && grep -q 'C) Mix' '$PA'"
@@ -572,6 +572,8 @@ printf '# My Gemini rules\n' > "$H/.gemini/GEMINI.md"
 mkdir -p "$H/.gemini/config"
 printf '{\n  "my-format": { "PostToolUse": [ { "matcher": "write_to_file", "hooks": [ { "type": "command", "command": "echo my-agy-hook" } ] } ] }\n}\n' > "$H/.gemini/config/hooks.json"
 printf '{\n  "theme": "dark",\n  "hooks": { "BeforeTool": [ { "matcher": "run_shell_command", "hooks": [ { "name": "my-check", "type": "command", "command": "echo my-gemini-hook" } ] } ] }\n}\n' > "$H/.gemini/settings.json"
+printf -- '---\nname: my-agent\n---\nMine.\n' > "$H/.claude/agents/my-agent.md"
+mkdir -p "$H/.gemini/config/agents/my-agy"; printf -- '---\nname: my-agy\n---\nMine.\n' > "$H/.gemini/config/agents/my-agy/agent.md"
 
 run_install() { env -u AIDLC_KIT_HOME HOME="$H" "$@" bash "$KIT/install.sh" >"$TMP/install.out" 2>&1; }
 
@@ -586,13 +588,19 @@ check "kit copied to ~/.aidlc-kit" test -f "$H/.aidlc-kit/VERSION"
 check "config created" contains "$H/.aidlc-kit/config" "AIDLC_ENFORCE=project"
 check "config has every setting, including AIDLC_LEARN_HINTS" contains "$H/.aidlc-kit/config" "AIDLC_LEARN_HINTS=on"
 check "/aidlc skill installed" test -f "$H/.claude/skills/aidlc/SKILL.md"
-check "reviewer agent installed" test -f "$H/.claude/agents/aidlc-reviewer.md"
+for a in aidlc-analyst aidlc-builder aidlc-tester aidlc-debugger aidlc-researcher aidlc-reviewer; do
+  check "agent $a installed for Claude Code (same as the kit)" cmp -s "$KIT/claude/agents/$a.md" "$H/.claude/agents/$a.md"
+  check "agent $a installed for Antigravity (rendered)" bash -c ". \"\$1/lib/kit.sh\"; antigravity_agent \"\$1/claude/agents/\$2.md\" | cmp -s - \"\$3/.gemini/config/agents/\$2/agent.md\"" _ "$KIT" "$a" "$H"
+done
+check "install keeps your own agents (Claude Code, Antigravity)" sh -c "test -f '$H/.claude/agents/my-agent.md' && test -f '$H/.gemini/config/agents/my-agy/agent.md'"
+check "doctor after install: the Claude Code agents" contains "$TMP/install.out" "Claude Code agents: 6 roles"
+check "doctor after install: the Antigravity agents" contains "$TMP/install.out" "Antigravity agents: 6 roles"
 check "v1 flutter-reviewer removed" test ! -f "$H/.claude/agents/flutter-reviewer.md"
 check "v1 flutter-reviewer backed up" sh -c "find '$H/.aidlc-kit/backups' -name flutter-reviewer.md | grep -q ."
 check "settings.json is valid JSON" jq empty "$H/.claude/settings.json"
 check "other settings kept" sh -c "jq -e '.model == \"opus\"' '$H/.claude/settings.json'"
 check "user's own hook kept" contains "$H/.claude/settings.json" "echo user-hook"
-for h in plan-gate auto-format session-start learn-hint plan-check; do expect_rc "hook $h registered once" 1 "$(hooks_count $h)"; done
+for h in plan-gate auto-format session-start learn-hint plan-check subagent-start; do expect_rc "hook $h registered once" 1 "$(hooks_count $h)"; done
 check "shared brain installed in ~/.aidlc-kit/brain" test -f "$H/.aidlc-kit/brain/INDEX.md"
 check "brain.sh installed" test -f "$H/.aidlc-kit/brain.sh"
 check "tokens.sh installed and executable" test -x "$H/.aidlc-kit/tokens.sh"
@@ -692,7 +700,9 @@ expect_rc "GEMINI.md block removed" 0 "$(count_in "$H/.gemini/GEMINI.md" "AIDLC:
 check "uninstall removes the Antigravity hooks and keeps yours" sh -c "! grep -q 'aidlc-plan' '$AGY' && grep -q 'echo my-agy-hook' '$AGY'"
 check "uninstall removes the Gemini CLI hook and keeps your settings" sh -c "! grep -q 'aidlc-plan-gate' '$GCLI' && grep -q 'echo my-gemini-hook' '$GCLI' && grep -q 'dark' '$GCLI'"
 check "/aidlc skill removed" test ! -e "$H/.claude/skills/aidlc"
-check "reviewer agent removed" test ! -e "$H/.claude/agents/aidlc-reviewer.md"
+check "role agents removed (Claude Code)" sh -c "! ls '$H/.claude/agents/' | grep -q '^aidlc-'"
+check "role agents removed (Antigravity)" sh -c "! ls '$H/.gemini/config/agents/' | grep -q '^aidlc-'"
+check "uninstall keeps your own agents" sh -c "test -f '$H/.claude/agents/my-agent.md' && test -f '$H/.gemini/config/agents/my-agy/agent.md'"
 check "~/.aidlc-kit removed" test ! -e "$H/.aidlc-kit"
 check "uninstall kept copies" sh -c "ls -d '$H'/.aidlc-kit-uninstall-* >/dev/null 2>&1"
 check "uninstall saved your shared brain" sh -c "grep -rq 'my own shared lesson' '$H'/.aidlc-kit-uninstall-*/kit/brain/INDEX.md"
@@ -869,7 +879,7 @@ new_repo "$GP" >/dev/null 2>&1
 (cd "$KIT" && gh_env bash install.sh) >"$TMP/step1.out" 2>&1
 expect_rc "step 1: cd aidlc-kit && bash install.sh (new machine: no ~/.claude, no ~/.gemini)" 0 "$?"
 n_hooks="$(grep -o 'aidlc-kit/claude/hooks/[a-z-]*\.sh' "$GH/.claude/settings.json" 2>/dev/null | sort -u | wc -l | tr -d ' ')"
-expect_rc "step 1 registers the 5 hooks in a new settings.json" 5 "$n_hooks"
+expect_rc "step 1 registers the 6 hooks in a new settings.json" 6 "$n_hooks"
 check "step 1 creates ~/.claude/CLAUDE.md with the plan-first rule" contains "$GH/.claude/CLAUDE.md" "AIDLC:BEGIN"
 check "step 1 creates ~/.gemini/GEMINI.md with the plan-first rule" contains "$GH/.gemini/GEMINI.md" "AIDLC:BEGIN"
 check "step 1 prints the commands for steps 2 and 3" contains "$TMP/step1.out" "git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc-docs .gitignore && git commit"
@@ -1367,6 +1377,113 @@ check "... with the gate's message" contains "$TMP/gem.err" "AI-DLC plan gate"
 printf '{"tool_name":"replace","cwd":"%s","tool_input":{"file_path":"%s/aidlc-docs/work/x.md"}}' "$AP" "$AP" | bash "$KIT/claude/hooks/plan-gate.sh" >/dev/null 2>&1
 expect_rc "Gemini CLI input (replace): a planning document is allowed" 0 "$?"
 check "the guide no longer says Antigravity and Gemini have no hooks" sh -c "! grep -q 'Antigravity and Gemini have no hooks' '$KIT/GUIDE.md'"
+
+# =====================================================================================================
+section "16. Several agents (roles, helper rules in the gate, SubagentStart, Agent plan)"
+AGD="$KIT/claude/agents"; RO=" aidlc-analyst aidlc-tester aidlc-debugger aidlc-researcher aidlc-reviewer "
+AGY_TOOLS=" view_file list_dir find_by_name grep_search write_to_file replace_file_content multi_replace_file_content run_command search_web read_url_content send_message "
+fm() { awk 'NR == 1 && /^---/ { on = 1; next } on && /^---/ { exit } on' "$1"; }   # the frontmatter lines
+fmv() { fm "$1" | sed -n "s/^$2:[[:space:]]*//p" | head -n 1; }                    # one frontmatter value
+expect_rc "the kit's agent list (KIT_AGENTS) matches claude/agents/" "$(ls "$AGD" | sed 's/\.md$//' | sort | tr '\n' ' ')" \
+  "$( . "$KIT/lib/kit.sh"; printf '%s\n' $KIT_AGENTS | sort | tr '\n' ' ')"
+for f in "$AGD"/aidlc-*.md; do
+  a="$(basename "$f" .md)"; t="$(fmv "$f" antigravity-tools | tr -d '[]' | tr ',' ' ')"; ct="$(fmv "$f" tools)"
+  { [ "$(fmv "$f" name)" = "$a" ] && [ -n "$(fmv "$f" description)" ] && [ -n "$ct" ]; } && ok "$a: name, description and tools" || bad "$a: name, description and tools"
+  fmv "$f" description | grep -q ': ' && bad "$a: description is plain YAML (no ': ')" || ok "$a: description is plain YAML (no ': ')"
+  unknown=""; for x in $t; do case "$AGY_TOOLS" in *" $x "*) ;; *) unknown="$unknown $x" ;; esac; done
+  { [ -n "$t" ] && [ -z "$unknown" ]; } && ok "$a: only documented Antigravity tool names" || bad "$a: only documented Antigravity tool names (unknown:$unknown)"
+  printf '%s %s' "$ct" "$t" | grep -qE '(^|[ ,])Agent([ ,]|$)|invoke_subagent|define_subagent' && bad "$a: can't start other agents" || ok "$a: can't start other agents"
+  fm "$f" | grep -q '^model:' && bad "$a: uses the main model (no model line)" || ok "$a: uses the main model (no model line)"
+  contains "$f" "AI-DLC result ·" && ok "$a: returns the result card" || bad "$a: returns the result card"
+  case "$RO" in
+    *" $a "*)
+      { ! printf '%s' "$ct" | grep -q 'Edit' && ! printf '%s' "$t" | grep -qE 'write_to_file|replace_file_content'; } \
+        && ok "$a (read-only): no editing tools (Claude Code, Antigravity)" || bad "$a (read-only): no editing tools (Claude Code, Antigravity)"
+      [ "$(fmv "$f" omitClaudeMd)" = true ] && ok "$a (read-only): starts without CLAUDE.md" || bad "$a (read-only): starts without CLAUDE.md" ;;
+    *)
+      { printf '%s' "$ct" | grep -q 'Edit' && printf '%s' "$t" | grep -q 'write_to_file' && [ -z "$(fmv "$f" omitClaudeMd)" ]; } \
+        && ok "$a: can edit and loads every rule" || bad "$a: can edit and loads every rule" ;;
+  esac
+  r="$( . "$KIT/lib/kit.sh"; antigravity_agent "$f" )"
+  expect_rc "$a: the Antigravity frontmatter" "name description tools model mainAgent subagent " \
+    "$(printf '%s\n' "$r" | awk 'NR == 1 { next } /^---/ { exit } { sub(/:.*/, ""); print }' | tr '\n' ' ')"
+  [ "$(printf '%s\n' "$r" | sed -n 's/^model: //p')" = inherit ] && ok "$a: Antigravity uses the main model (inherit)" || bad "$a: Antigravity uses the main model (inherit)"
+  [ "$(printf '%s\n' "$r" | awk '/^---/ { n++; next } n >= 2')" = "$(awk '/^---/ { n++; next } n >= 2' "$f")" ] \
+    && ok "$a: the same prompt in Antigravity and Claude Code" || bad "$a: the same prompt in Antigravity and Claude Code"
+done
+
+# The plan gate inside a subagent (the hook input has agent_id and agent_type).
+MP="$TMP/agents app"; mkdir -p "$MP/aidlc-docs/work/001-x/agents" "$MP/lib" "$TMP/no-aidlc"
+printf '<!-- aidlc:state:begin -->\ncode_gate: open\nactive_plan: aidlc-docs/work/001-x/implementation_plan.md\n<!-- aidlc:state:end -->\n' > "$MP/aidlc-docs/aidlc-state.md"
+printf '# Plan\n> Status: APPROVED 2026-11-08 13:00\n<!-- aidlc:files:begin -->\n| # | Path | Change |\n|---|---|---|\n| M1 | `lib/a.dart` | x |\n<!-- aidlc:files:end -->\n' > "$MP/aidlc-docs/work/001-x/implementation_plan.md"
+mgate() { printf '{"tool_name":"Write","cwd":"%s","tool_input":{"file_path":"%s/%s"}%s}' "$1" "$1" "$2" "$3" | bash "$KIT/claude/hooks/plan-gate.sh" >/dev/null 2>"$TMP/mg.err"; echo $?; }
+HLP=',"agent_id":"a1","agent_type":"general-purpose"'
+expect_rc "gate: the lead may change the state file" 0 "$(mgate "$MP" aidlc-docs/aidlc-state.md '')"
+expect_rc "gate: a helper may not change the state file" 2 "$(mgate "$MP" aidlc-docs/aidlc-state.md "$HLP")"
+check "... and is told that only the lead changes it" contains "$TMP/mg.err" "Only the lead agent changes plans"
+expect_rc "gate: a builder may not change the plan" 2 "$(mgate "$MP" aidlc-docs/work/001-x/implementation_plan.md ',"agent_id":"a1","agent_type":"aidlc-builder"')"
+expect_rc "gate: a helper may not change the audit log" 2 "$(mgate "$MP" aidlc-docs/audit-log.md "$HLP")"
+expect_rc "gate: a helper may not change the rules" 2 "$(mgate "$MP" .agents/rules/60-mine.md "$HLP")"
+expect_rc "gate: a helper may write its notes" 0 "$(mgate "$MP" aidlc-docs/work/001-x/agents/T1-analyst.md ',"agent_id":"a1","agent_type":"aidlc-analyst"')"
+expect_rc "gate: a read-only role may not change code, not even a planned file" 2 "$(mgate "$MP" lib/a.dart ',"agent_id":"a1","agent_type":"aidlc-analyst"')"
+check "... and is told that it is read-only" contains "$TMP/mg.err" "role is read-only"
+expect_rc "gate: a builder may change a planned file" 0 "$(mgate "$MP" lib/a.dart ',"agent_id":"a1","agent_type":"aidlc-builder"')"
+expect_rc "gate: a builder may not change an unplanned file" 2 "$(mgate "$MP" lib/b.dart ',"agent_id":"a1","agent_type":"aidlc-builder"')"
+expect_rc "gate: a main session started with --agent (no agent_id) is the lead" 0 "$(mgate "$MP" aidlc-docs/aidlc-state.md ',"agent_type":"aidlc-builder"')"
+expect_rc "gate: the helper rules work without jq (python3)" 2 "$(AIDLC_JSON_TOOL=python3 mgate "$MP" aidlc-docs/aidlc-state.md "$HLP")"
+expect_rc "gate: outside an AI-DLC project a helper is not limited" 0 "$(mgate "$TMP/no-aidlc" notes.md "$HLP")"
+
+# SubagentStart: the helper rules for every subagent in an AI-DLC project.
+SS="$KIT/claude/hooks/subagent-start.sh"
+is_rules() { python3 -c 'import json, sys; d = json.load(sys.stdin)["hookSpecificOutput"]; assert d["hookEventName"] == "SubagentStart" and "AI-DLC helper rules" in d["additionalContext"]'; }
+printf '{"cwd":"%s/lib","agent_id":"a1","agent_type":"Explore"}' "$MP" | bash "$SS" | is_rules \
+  && ok "SubagentStart: a subagent in an AI-DLC project gets the helper rules (valid JSON)" || bad "SubagentStart: a subagent in an AI-DLC project gets the helper rules (valid JSON)"
+printf '{"cwd":"%s","agent_type":"Explore"}' "$MP" | AIDLC_JSON_TOOL=python3 bash "$SS" | is_rules \
+  && ok "SubagentStart works without jq (python3)" || bad "SubagentStart works without jq (python3)"
+expect_rc "SubagentStart: the kit's own roles get nothing (the rules are in their prompt)" "" "$(printf '{"cwd":"%s","agent_type":"aidlc-analyst"}' "$MP" | bash "$SS")"
+expect_rc "SubagentStart: outside an AI-DLC project nothing" "" "$(printf '{"cwd":"%s","agent_type":"Explore"}' "$TMP/no-aidlc" | bash "$SS")"
+expect_rc "SubagentStart: AIDLC_ENFORCE=off adds nothing" "" "$(printf '{"cwd":"%s","agent_type":"Explore"}' "$MP" | AIDLC_ENFORCE=off bash "$SS")"
+
+# verify-plan.sh: the Agent plan, the needs and the files of tasks that can run at the same time.
+VA="$MP/aidlc-docs/work/002-y/implementation_plan.md"; mkdir -p "$(dirname "$VA")"
+vagent() { { printf '# Plan\n> Status: APPROVED 2026-11-08 13:00\n%s\n## 14. Task plan\n' "$1"; shift; printf '%s\n' "$@"; } > "$VA"
+           bash "$KIT/verify-plan.sh" "$VA" > "$TMP/va.out" 2>&1; }
+TK() { printf -- '- [ ] ⏳ **[PENDING]** %s' "$1"; }
+vagent '**Agent plan:** parallel · roles: builder ×2' "$(TK 'T1 A `lib/a.dart`')" "$(TK 'T2 B `lib/core/url.dart`')" "$(TK 'T3 C `lib/r.dart`, `lib/core/url.dart` · needs: T1')"
+check "Agent plan: parallel tasks that change the same file are a problem" contains "$TMP/va.out" "T2 and T3 can run at the same time but both change \`lib/core/url.dart\`"
+vagent '**Agent plan:** parallel' "$(TK 'T1 A `lib/a.dart`')" "$(TK 'T2 B `lib/core/url.dart`')" "$(TK 'T3 C `lib/r.dart`, `lib/core/url.dart` · needs: T1, T2')"
+check "Agent plan: a needs between them settles it (and shows the waves)" sh -c "! grep -q 'at the same time' '$TMP/va.out' && grep -q 'agent plan: parallel · 3 task(s) in 2 wave(s), up to 2 at once' '$TMP/va.out'"
+vagent '**Agent plan:** pipeline' "$(TK 'T1 A `lib/a.dart`')" "$(TK 'T2 B `lib/a.dart`')"
+check "Agent plan: in pipeline mode tasks may share a file (one builder at a time)" sh -c "! grep -q 'at the same time' '$TMP/va.out' && grep -q 'agent plan: pipeline · 2 task(s)' '$TMP/va.out'"
+vagent '**Agent plan:** pipeline' "$(TK 'T1 A · needs: T2')" "$(TK 'T2 B · needs: T1')" "$(TK 'T3 C · needs: T3, T9')"
+check "Agent plan: a needs loop is a problem" contains "$TMP/va.out" "wait for each other in a loop (needs): T1 T2"
+check "Agent plan: a task that needs itself is a problem" contains "$TMP/va.out" "T3 needs itself"
+check "Agent plan: needs must name a real task" contains "$TMP/va.out" "T3 needs T9, which is not a task in §14"
+vagent '**Agent plan:** turbo' "$(TK 'T1 A')"
+check "Agent plan: only single, pipeline or parallel" contains "$TMP/va.out" "Agent plan must be single, pipeline or parallel (found: turbo)"
+vagent '**Agent plan:** single' "$(TK 'T1 A')" "$(TK 'T1 B')"
+check "Agent plan: every task has its own number" contains "$TMP/va.out" "task T1 appears twice"
+vagent '**Agent plan:** parallel' "$(TK 'T1 A')" "$(TK 'T2 B `lib/b.dart`')"
+check "Agent plan: parallel mode warns about a task that names no file" contains "$TMP/va.out" "T1 names no file"
+vagent '' "$(TK 'T1 A `lib/a.dart`')" "$(TK 'T2 B `lib/a.dart`')"
+check "Agent plan: an older plan without it gets no new message" sh -c "! grep -qi 'agent plan' '$TMP/va.out'"
+vagent '**Agent plan:** parallel' "$(TK 'T1 A `lib/a.dart`')" "$(TK 'T2 B `lib/a.dart`')"
+bash "$KIT/verify-plan.sh" "$VA" --quick > "$TMP/va.out" 2>&1
+check "Agent plan: --quick (the hook while a plan is written) skips it" sh -c "! grep -q 'at the same time' '$TMP/va.out'"
+
+# The protocol in the pack.
+IPT="$KIT/pack/.agents/templates/implementation_plan.md"; BPT="$KIT/pack/.agents/templates/bugfix_plan.md"
+MA="$KIT/pack/.agents/skills/aidlc-multi-agent/SKILL.md"; CORE="$KIT/pack/.agents/rules/00-aidlc-core.md"
+check "plan template: the Agent plan line and needs on the example tasks" sh -c "grep -q '^\*\*Agent plan:\*\* pipeline' '$IPT' && grep -q '· needs: T1, T2\$' '$IPT'"
+check "bug-fix template: the Agent plan line (single)" grep -q '^\*\*Agent plan:\*\* single' "$BPT"
+check "the template's example tasks pass the Agent plan check" sh -c "sed -n '/^## 14\\. Task plan/,/^## 15\\./p' '$IPT' > '$TMP/tp.md'; { printf '# P\n> Status: APPROVED 2026-11-08\n'; cat '$TMP/tp.md'; } > '$VA'; bash '$KIT/verify-plan.sh' '$VA' | grep -q 'agent plan: pipeline · 9 task(s), their needs checked'"
+check "skill aidlc-multi-agent: name and kit marker" sh -c "grep -q '^name: aidlc-multi-agent' '$MA' && grep -q 'aidlc-kit:managed' '$MA'"
+expect_rc "skill aidlc-multi-agent: under 9 KB (read only when agents are used)" 0 "$([ "$(wc -c < "$MA" | tr -d ' ')" -le 9216 ]; echo $?)"
+check "core rules: a routing row and §11 Several agents" sh -c "grep -q 'aidlc-multi-agent/SKILL.md' '$CORE' && grep -q '^## 11. Several agents' '$CORE'"
+for s in aidlc-construction aidlc-feature aidlc-bugfix; do check "$s points to the multi-agent skill" contains "$KIT/pack/.agents/skills/$s/SKILL.md" "aidlc-multi-agent"; done
+check "AGENTS.md, CLAUDE.md, GEMINI.md and /aidlc name the protocol" sh -c "grep -q 'aidlc-multi-agent' '$KIT/pack/AGENTS.md' && grep -q 'aidlc-builder' '$KIT/pack/CLAUDE.md' && grep -q 'invoke_subagent' '$KIT/pack/GEMINI.md' && grep -q 'aidlc-multi-agent' '$KIT/claude/skills/aidlc/SKILL.md'"
+check "doctor knows the new skill" contains "$KIT/claude/bin/doctor.sh" "aidlc-anti-hallucination aidlc-multi-agent"
+check "GUIDE explains several agents" grep -q '^### 4.8 Several agents' "$KIT/GUIDE.md"
 
 # =====================================================================================================
 printf '\nResult: %d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"

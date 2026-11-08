@@ -60,11 +60,21 @@ if [ -d "$CLAUDE_DIR/skills/aidlc" ]; then
   rm -rf "$CLAUDE_DIR/skills/aidlc"
   say "✓ removed the /aidlc command"
 fi
-if [ -f "$CLAUDE_DIR/agents/aidlc-reviewer.md" ]; then
-  backup_to "$CLAUDE_DIR/agents/aidlc-reviewer.md" "$SAFE/claude/agents/aidlc-reviewer.md"
-  rm -f "$CLAUDE_DIR/agents/aidlc-reviewer.md"
-  say "✓ removed the aidlc-reviewer agent"
-fi
+n_claude=0; n_agy=0
+for name in $KIT_AGENTS; do
+  if [ -f "$CLAUDE_DIR/agents/$name.md" ]; then
+    backup_to "$CLAUDE_DIR/agents/$name.md" "$SAFE/claude/agents/$name.md"
+    rm -f "$CLAUDE_DIR/agents/$name.md"; n_claude=$((n_claude + 1))
+  fi
+  if [ -f "$GEMINI_DIR/config/agents/$name/agent.md" ]; then
+    backup_to "$GEMINI_DIR/config/agents/$name/agent.md" "$SAFE/gemini/config/agents/$name/agent.md"
+    rm -f "$GEMINI_DIR/config/agents/$name/agent.md"; n_agy=$((n_agy + 1))
+    rmdir "$GEMINI_DIR/config/agents/$name" 2>/dev/null || true
+  fi
+done
+rmdir "$GEMINI_DIR/config/agents" 2>/dev/null || true
+[ "$n_claude" = 0 ] || say "✓ removed $n_claude AI-DLC agent(s) from $CLAUDE_DIR/agents/"
+[ "$n_agy" = 0 ] || say "✓ removed $n_agy AI-DLC agent(s) from $GEMINI_DIR/config/agents/ (Antigravity)"
 
 if [ "$KEEP_HOME" = 0 ] && [ -d "$KIT_HOME" ]; then
   if [ -f "$KIT_HOME/VERSION" ] && [ -d "$KIT_HOME/claude/hooks" ]; then

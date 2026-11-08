@@ -20,5 +20,8 @@ Notes:
 - When the AI-DLC hooks are installed (Antigravity, Gemini CLI), edits to project files are blocked unless the
   approved plan lists them, and Antigravity sends a draft plan with ✗ problems back to you before the gate.
   If an edit is blocked, follow the message. Never work around the gate.
+- Antigravity subagents: the kit installs `aidlc-analyst`, `aidlc-builder`, `aidlc-tester`, `aidlc-debugger`,
+  `aidlc-researcher` and `aidlc-reviewer`. Start them with `invoke_subagent` by
+  `.agents/skills/aidlc-multi-agent/SKILL.md`; you stay the lead and the only one who asks the user.
 - Gemini CLI tokens: `/stats` shows the token use, `/compress` summarizes the conversation.
 <!-- AIDLC:END -->

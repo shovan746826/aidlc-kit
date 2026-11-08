@@ -1,4 +1,4 @@
-# AI-DLC Kit v3.2
+# AI-DLC Kit v3.3
 
 **AI-Driven Development Lifecycle for every project and every AI agent, with a brain that learns.**
 The agent analyzes, asks questions, thinks the plan through, and waits for your approval. Only then does it
@@ -33,6 +33,12 @@ are set up separately.
 - **Plan first, always.** No file changes without an approved plan. Claude Code, Antigravity and Gemini CLI
   enforce it with a hook (the same plan gate).
 - **Questions before every plan**, multiple choice with a ★ recommendation. Nothing is guessed.
+- **Several agents at once (multi-agent):** the agent you talk to is the lead; helper agents work beside it. An
+  analyst prepares the next step while a builder codes the current one, a tester runs the checks, a debugger
+  finds the cause of a failure, a researcher and a reviewer help too. Each plan says how (`single`, `pipeline` or
+  `parallel`) and you approve it with the plan. Helpers can't approve, change the plan or touch files they don't
+  own (the plan gate checks it in Claude Code), and `verify-plan.sh` makes sure parallel tasks never share a file.
+  Claude Code and Antigravity.
 - **Every stage is proven, not just promised:** before you see a plan, `verify-plan.sh` checks that the earlier
   stages were approved, that every user story has a file or task and a test, every NFR a named check, and that
   no blocking question is open. After the build it checks that every task is done and that the test and review
@@ -114,15 +120,17 @@ aidlc-kit/
 │       │                       50-anti-hallucination (always on)
 │       ├── skills/             project-analysis · aidlc-new-project · aidlc-feature · aidlc-bugfix · aidlc-construction
 │       │                       aidlc-release · aidlc-think · aidlc-reflect · aidlc-research · aidlc-prompt
-│       │                       aidlc-anti-hallucination
+│       │                       aidlc-anti-hallucination · aidlc-multi-agent
 │       └── templates/          24 templates (plans, reports, brain, research, question bank, …)
 ├── standards/                  flutter (v3 + reference/ code) · android · ios · backend · generic → project-architecture skill + 20-architecture rule
 ├── brain/                      shared-brain starter: 28 verified lessons (updates refresh the ones you never edited)
-├── claude/                     Claude Code: /aidlc · aidlc-reviewer · hooks (plan gate, plan check, session, auto-format, learning hint) · doctor ·
-│                               antigravity.sh (Antigravity: plan gate, plan check; Gemini CLI uses plan-gate.sh)
+├── claude/                     Claude Code: /aidlc · 6 role agents (analyst, builder, tester, debugger, researcher, reviewer;
+│                               also rendered for Antigravity) · hooks (plan gate, plan check, session, subagent start,
+│                               auto-format, learning hint) · doctor · antigravity.sh (Antigravity: plan gate, plan check;
+│                               Gemini CLI uses plan-gate.sh)
 ├── global/                     plan-first rules for ~/.claude/CLAUDE.md and ~/.gemini/GEMINI.md
 ├── lib/kit.sh                  shared script helpers
-└── tests/                      run-tests.sh (487 checks) · flutter-standard-check.sh (compiles the Flutter standard)
+└── tests/                      run-tests.sh (612 checks) · flutter-standard-check.sh (compiles the Flutter standard)
 ```
 
 ## Settings (`~/.aidlc-kit/config` or environment variables)
@@ -173,7 +181,8 @@ bash ~/.aidlc-kit/remove-project.sh ~/StudioProjects/MyApp --dry-run
 ```
 
 **Uninstall from this Mac** (remove it from your projects first if you want that). It removes `/aidlc`, the
-reviewer agent, the hooks, the global rules and `~/.aidlc-kit`; your shared brain and settings are saved.
+role agents (Claude Code and Antigravity), the hooks, the global rules and `~/.aidlc-kit`; your shared brain and
+settings are saved.
 ```bash
 bash ~/.aidlc-kit/uninstall.sh
 ```

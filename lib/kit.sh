@@ -101,8 +101,9 @@ settings_hooks() {
        --arg fmt "bash \"$hooks/auto-format.sh\"" \
        --arg ses "bash \"$hooks/session-start.sh\"" \
        --arg hint "bash \"$hooks/learn-hint.sh\"" \
-       --arg check "bash \"$hooks/plan-check.sh\"" '
-      def ours: (.command // "") | test("claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check)\\.sh");
+       --arg check "bash \"$hooks/plan-check.sh\"" \
+       --arg sub "bash \"$hooks/subagent-start.sh\"" '
+      def ours: (.command // "") | test("claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check|subagent-start)\\.sh");
       def clean: map(if ((.hooks // []) | length) > 0 and ((.hooks // []) | all(ours))
                      then empty
                      else .hooks = ((.hooks // []) | map(select(ours | not))) end);
@@ -117,6 +118,8 @@ settings_hooks() {
             + [{hooks: [{type: "command", command: $ses, timeout: 15}]}])
         | .hooks.UserPromptSubmit = (((.hooks.UserPromptSubmit // []) | clean)
             + [{hooks: [{type: "command", command: $hint, timeout: 10}]}])
+        | .hooks.SubagentStart = (((.hooks.SubagentStart // []) | clean)
+            + [{hooks: [{type: "command", command: $sub, timeout: 10}]}])
       else
         if (.hooks | type) == "object" then
           .hooks |= (with_entries(.value |= (if type == "array" then clean else . end))
@@ -131,7 +134,7 @@ import json, re, sys
 action, path, hooks = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(path, encoding="utf-8") as f:
     data = json.load(f)
-ours = re.compile(r"claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check)\.sh")
+ours = re.compile(r"claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check|subagent-start)\.sh")
 
 def clean(groups):
     result = []
@@ -154,6 +157,7 @@ if action == "add":
         ("PostToolUse", "Edit|Write|MultiEdit", [("auto-format.sh", 60), ("plan-check.sh", 30)]),
         ("SessionStart", None, [("session-start.sh", 15)]),
         ("UserPromptSubmit", None, [("learn-hint.sh", 10)]),
+        ("SubagentStart", None, [("subagent-start.sh", 10)]),
     ]
     for event, matcher, commands in wanted:
         entry = {"hooks": [{"type": "command", "command": cmd(name), "timeout": timeout} for name, timeout in commands]}
@@ -282,4 +286,29 @@ PY
   rm -f "$tmp"
   json_valid "$file" || die "$file became invalid JSON; restore it from the backup"
   if [ "$action" = remove ] && [ "$(tr -d ' \n\t' < "$file")" = "{}" ]; then rm -f "$file"; fi
+}
+
+# The AI-DLC role agents (claude/agents/<name>.md): one source per role, for Claude Code and Antigravity.
+KIT_AGENTS="aidlc-analyst aidlc-builder aidlc-tester aidlc-debugger aidlc-researcher aidlc-reviewer"
+
+# antigravity_agent <claude/agents/<name>.md>: prints the role as an Antigravity custom subagent
+# (~/.gemini/config/agents/<name>/agent.md): name, description, the tools from "antigravity-tools", the main
+# model, a subagent only (not a main agent). The body (its system prompt) stays the same.
+antigravity_agent() {
+  awk '
+    NR == 1 && /^---[ \t]*$/ { fm = 1; next }
+    fm && /^---[ \t]*$/ {
+      fm = 0
+      print "---"; print "name: " name; print "description: " desc; print "tools: " tools
+      print "model: inherit"; print "mainAgent: false"; print "subagent: true"; print "---"
+      next
+    }
+    fm {
+      if (sub(/^name:[ \t]*/, "")) name = $0
+      else if (sub(/^description:[ \t]*/, "")) desc = $0
+      else if (sub(/^antigravity-tools:[ \t]*/, "")) tools = $0
+      next
+    }
+    { print }
+  ' "$1"
 }

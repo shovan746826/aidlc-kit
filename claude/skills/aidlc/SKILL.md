@@ -58,6 +58,10 @@ Find the project root (`git rev-parse --show-toplevel`, else the current folder)
   files with shell commands.
 - **Review** (`10-quality-gates.md` §3): delegate to the `aidlc-reviewer` agent and pass it the work item
   folder. Save its report as `review-report.md`.
+- **Helper agents** (`aidlc-analyst`, `aidlc-builder`, `aidlc-tester`, `aidlc-debugger`, `aidlc-researcher`):
+  when the plan's Agent plan is `pipeline` or `parallel`, or the user asks for agents, follow
+  `.agents/skills/aidlc-multi-agent/SKILL.md`. Start them with the Agent tool and the handoff card; you stay the
+  lead (subagents can't ask the user).
 - **Questions:** you may ask up to 4 multiple-choice questions at a time with the AskUserQuestion tool. Put
   the ★ recommended option first. Still record every answer in `questions.md`.
 - **Learning hint** (hook): when the user's message looks like a correction, you get a one-line reminder.

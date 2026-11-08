@@ -24,7 +24,8 @@ description: Fix a bug the AI-DLC way. Triage questions, reproduce, find the roo
 
 ## B2. Reproduce and find the root cause
 1. Reproduce by following the code path, reading logs, or running the existing tests. If you cannot
-   reproduce it, say so and ask for more data. **Never guess a fix.**
+   reproduce it, say so and ask for more data. **Never guess a fix.** A hard bug with several possible causes:
+   up to 3 debugger agents, one hypothesis each (`aidlc-multi-agent` M5).
 2. Root cause with evidence: `path:line`, the exact condition, why it happens. Recent history helps
    (read-only: `git log -p -- <file>`).
 3. Blast radius: other callers of this code, and the same bug pattern elsewhere (search for it). Report other
