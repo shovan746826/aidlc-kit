@@ -9,13 +9,15 @@
 @.agents/rules/40-token-efficiency.md
 @.agents/rules/50-anti-hallucination.md
 @aidlc-docs/brain/INDEX.md
-@.agents/brain/shared/INDEX.md
 
 Claude Code notes:
+- The shared lessons index (`.agents/brain/shared/INDEX.md`) is not loaded at start, to save tokens: read it
+  before every plan and every bug fix (`30-learning.md` §1).
 - Claude Code does not list skills from `.agents/skills/` by itself. Read the SKILL.md that the routing table
   in `00-aidlc-core.md` names. The `/aidlc` command (installed by the kit) does this routing for you.
 - When the AI-DLC hooks are installed, edits to project files are blocked unless the approved plan lists
-  them. If an edit is blocked, follow the message. Never work around the gate.
+  them, and so are shell commands that write them (`>`, `sed -i`, `cp`, `rm`, …). If an edit or a command is
+  blocked, follow the message. Never work around the gate.
 - For review and gap analysis, use the `aidlc-reviewer` agent if it is available. The kit's other agents
   (`aidlc-analyst`, `aidlc-builder`, `aidlc-tester`, `aidlc-debugger`, `aidlc-researcher`) work by
   `.agents/skills/aidlc-multi-agent/SKILL.md`; you stay the lead, because subagents can't ask the user.

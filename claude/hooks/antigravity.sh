@@ -2,7 +2,8 @@
 # AI-DLC kit: Google Antigravity hooks (~/.gemini/config/hooks.json). Antigravity sends JSON on stdin and reads
 # the answer as JSON on stdout.
 #   antigravity.sh pre-tool   PreToolUse for write_to_file | replace_file_content | multi_replace_file_content:
-#                             runs the plan gate (the same script as Claude Code) and answers allow or deny.
+#                             runs the plan gate (the same script as Claude Code) and answers allow or deny;
+#                             for run_command, the shell gate (the files the command would write).
 #   antigravity.sh stop       Stop: a draft plan changed in the last hour that fails verify-plan.sh sends the agent
 #                             back with the problems, once per version of the plan and at most 3 times.
 # Never blocks by mistake: a missing field or tool answers "allow" (pre-tool) or nothing to do (stop).
@@ -24,6 +25,17 @@ answer() {
 
 case "${1:-}" in
   pre-tool)
+    if [ "$(json_get "$input" .toolCall.name)" = run_command ]; then
+      cmd="$(json_get "$input" .toolCall.args.CommandLine)"
+      [ -n "$cmd" ] || { answer allow; exit 0; }
+      dir="$(json_get "$input" .toolCall.args.Cwd)"
+      shell_input="$(printf '{"tool_name":"Bash","cwd":%s,"tool_input":{"command":%s}}' \
+        "$(json_string "${dir:-${ws:-$PWD}}")" "$(json_string "$cmd")")"
+      if msg="$(printf '%s' "$shell_input" | bash "$HOOKS_DIR/shell-gate.sh" 2>&1 >/dev/null)"; then answer allow
+      elif [ "$?" = 2 ]; then answer deny "$msg"
+      else answer allow; fi
+      exit 0
+    fi
     file="$(json_get "$input" .toolCall.args.TargetFile)"
     [ -n "$file" ] || { answer allow; exit 0; }
     gate_input="$(printf '{"tool_name":"Edit","cwd":%s,"tool_input":{"file_path":%s}}' \

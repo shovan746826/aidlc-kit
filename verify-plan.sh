@@ -309,7 +309,11 @@ fi
 if [ "$mode" = "full" ]; then
   facts="$(plan_facts "$plan")"
   if [ "$facts" = "MISSING" ]; then
-    warn "no \"Facts and assumptions\" table (plan template v2.7): list the facts the plan depends on"
+    if [ "$status" = "APPROVED" ] || [ "$status" = "COMPLETED" ]; then
+      warn "no \"Facts and assumptions\" table (plans written before kit v2.7 have none)"
+    else
+      bad "no \"Facts and assumptions\" table: list the facts the plan depends on, each with its evidence (50-anti-hallucination §3)"
+    fi
   else
     n_f=0
     while IFS="$(printf '\t')" read -r id st ev; do
@@ -485,6 +489,10 @@ if [ "$mode" = "full" ]; then
     case "$agent_mode" in
       ''|single|pipeline|parallel) ;;
       *) bad "Agent plan must be single, pipeline or parallel (found: $agent_mode)"; agent_mode="" ;;
+    esac
+    case "$agent_mode" in
+      pipeline|parallel) [ "$(header_value "$plan" Depth)" = light ] \
+        && warn "a light plan with Agent plan $agent_mode: light plans normally run single (helpers cost tokens of their own)" ;;
     esac
     while IFS="$(printf '\t')" read -r kind msg; do
       case "$kind" in BAD) bad "$msg" ;; WARN) warn "$msg" ;; OK) ok "$msg" ;; esac

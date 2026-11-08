@@ -1,0 +1,32 @@
+# AI-DLC kit: run the kit's tests on every push and pull request.
+# macOS must pass (the kit is built and checked there). Linux is reported too, but doesn't fail the run until it
+# passes (it was never tested before v3.4).
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            experimental: false
+          - os: ubuntu-latest
+            experimental: true
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tools
+        run: |
+          bash --version | head -n 1
+          jq --version
+          python3 --version
+          git --version
+      - name: Run the kit's tests
+        run: bash tests/run-tests.sh

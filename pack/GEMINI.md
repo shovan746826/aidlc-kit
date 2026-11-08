@@ -9,7 +9,6 @@
 @./.agents/rules/40-token-efficiency.md
 @./.agents/rules/50-anti-hallucination.md
 @./aidlc-docs/brain/INDEX.md
-@./.agents/brain/shared/INDEX.md
 
 Notes:
 - Antigravity loads `.agents/rules/` and `.agents/skills/` by itself. Gemini CLI imports the files above.
@@ -17,8 +16,11 @@ Notes:
 - Skills live in `.agents/skills/<name>/SKILL.md`. If your tool does not list them, read the one that the
   routing table in `00-aidlc-core.md` names.
 - Antigravity: work in Planning mode and let the agent ask for your review before it changes files.
+- The shared lessons index (`.agents/brain/shared/INDEX.md`) is not loaded at start, to save tokens: read it
+  before every plan and every bug fix (`30-learning.md` §1).
 - When the AI-DLC hooks are installed (Antigravity, Gemini CLI), edits to project files are blocked unless the
-  approved plan lists them, and Antigravity sends a draft plan with ✗ problems back to you before the gate.
+  approved plan lists them (in Antigravity also `run_command` commands that write them), and Antigravity sends a
+  draft plan with ✗ problems back to you before the gate.
   If an edit is blocked, follow the message. Never work around the gate.
 - Antigravity subagents: the kit installs `aidlc-analyst`, `aidlc-builder`, `aidlc-tester`, `aidlc-debugger`,
   `aidlc-researcher` and `aidlc-reviewer`. Start them with `invoke_subagent` by

@@ -58,7 +58,7 @@ elif [ -n "$cc_old" ]; then warn "Claude Code agents differ from the kit:$cc_old
 else ok "Claude Code agents: $n_roles roles (analyst, builder, tester, debugger, researcher, reviewer)"; fi
 if [ -n "$agy_miss" ]; then warn "Antigravity agents not installed:$agy_miss (run install.sh)"
 else ok "Antigravity agents: $n_roles roles in $GEMINI_DIR/config/agents/"; fi
-for h in plan-gate plan-check session-start subagent-start auto-format learn-hint; do
+for h in plan-gate shell-gate plan-check session-start subagent-start auto-format learn-hint; do
   if grep -q "claude/hooks/$h.sh" "$CLAUDE_DIR/settings.json" 2>/dev/null; then
     if [ -f "$KIT_HOME/claude/hooks/$h.sh" ]; then ok "Claude Code hook registered: $h"; else err "hook $h is registered but $KIT_HOME/claude/hooks/$h.sh is missing"; fi
   else
@@ -74,6 +74,8 @@ else
 fi
 if grep -q 'aidlc-plan-gate' "$GEMINI_DIR/settings.json" 2>/dev/null; then ok "Gemini CLI hook registered: plan gate"
 elif command -v gemini >/dev/null 2>&1; then warn "Gemini CLI hook not registered (run install.sh)"; fi
+size="$(wc -c < "$KIT_HOME/brain/INDEX.md" 2>/dev/null | tr -d ' ')"
+if [ "${size:-0}" -gt 8192 ]; then warn "shared brain index is $size bytes, over its 8192-byte budget (30-learning §6): merge or retire lessons (in a project: /aidlc brain)"; fi
 if [ -f "$KIT_HOME/brain/INDEX.md" ]; then ok "shared brain: $(grep -c '^- \[' "$KIT_HOME/brain/INDEX.md") lessons in $KIT_HOME/brain"; else warn "no shared brain in $KIT_HOME/brain (run install.sh)"; fi
 if [ -f "$KIT_HOME/tokens.sh" ]; then ok "token measurement: tokens.sh (reads Claude Code's own records)"; else warn "tokens.sh missing (run install.sh)"; fi
 if [ -f "$KIT_HOME/verify-plan.sh" ]; then ok "anti-hallucination plan check: verify-plan.sh"; else warn "verify-plan.sh missing (run install.sh)"; fi

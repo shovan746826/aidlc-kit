@@ -28,7 +28,7 @@ EOF
     active="$(grep -c '^- \[' "$brain/INDEX.md" 2>/dev/null)"
     shared="$(grep -c '^- \[' "$root/.agents/brain/shared/INDEX.md" 2>/dev/null)"
     inbox="$(grep -cE '^\| [0-9]+ \|' "$brain/inbox.md" 2>/dev/null)"
-    echo "Brain: ${active:-0} project lessons · ${shared:-0} shared lessons · ${inbox:-0} waiting in the inbox. Recall them before planning; capture corrections and failures as they happen (30-learning.md)."
+    echo "Brain: ${active:-0} project lessons · ${shared:-0} shared lessons · ${inbox:-0} waiting in the inbox. Recall them before planning (read aidlc-docs/brain/INDEX.md and .agents/brain/shared/INDEX.md: the shared index is not preloaded); capture corrections and failures as they happen (30-learning.md)."
   fi
   pack="$(grep -m 1 '^version=' "$root/.agents/.aidlc-version" 2>/dev/null | cut -d= -f2)"
   kit="$(cat "$AIDLC_KIT_HOME/VERSION" 2>/dev/null)"

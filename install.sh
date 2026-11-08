@@ -2,7 +2,7 @@
 # AI-DLC kit: install once per machine.
 #   • copies the kit to ~/.aidlc-kit (used by init-project.sh and the hooks)
 #   • Claude Code: /aidlc command, 6 role agents (aidlc-analyst, -builder, -tester, -debugger, -researcher,
-#     -reviewer), 6 hooks in settings.json, plan-first rule in CLAUDE.md
+#     -reviewer), 7 hooks in settings.json (the plan gate also for shell commands), plan-first rule in CLAUDE.md
 #   • Antigravity / Gemini: plan-first rule in ~/.gemini/GEMINI.md; the 6 role agents in ~/.gemini/config/agents/;
 #     plan gate + plan check hooks in Antigravity's ~/.gemini/config/hooks.json; plan gate hook in Gemini CLI's
 #     ~/.gemini/settings.json
@@ -225,7 +225,7 @@ if [ "$DO_CLAUDE" = 1 ]; then
     settings="$CLAUDE_DIR/settings.json"
     backup_to "$settings" "$BACKUP/claude/settings.json"
     settings_hooks add "$settings" "$KIT_HOME/claude/hooks"
-    say "✓ Claude Code hooks in $settings: plan gate · plan check · session start · subagent start · auto-format (new files) · learning hint"
+    say "✓ Claude Code hooks in $settings: plan gate · shell gate · plan check · session start · subagent start · auto-format (new files) · learning hint"
   fi
 
   tmp="$(mktemp)"
@@ -260,7 +260,7 @@ if [ "$DO_GEMINI" = 1 ]; then
     mkdir -p "$GEMINI_DIR/config"
     backup_to "$GEMINI_DIR/config/hooks.json" "$BACKUP/gemini/config/hooks.json"
     antigravity_hooks add "$GEMINI_DIR/config/hooks.json" "$KIT_HOME/claude/hooks"
-    say "✓ Antigravity hooks in $GEMINI_DIR/config/hooks.json: plan gate · plan check"
+    say "✓ Antigravity hooks in $GEMINI_DIR/config/hooks.json: plan gate (file edits and run_command) · plan check"
     backup_to "$GEMINI_DIR/settings.json" "$BACKUP/gemini/settings.json"
     gemini_hooks add "$GEMINI_DIR/settings.json" "$KIT_HOME/claude/hooks"
     say "✓ Gemini CLI hook in $GEMINI_DIR/settings.json: plan gate"

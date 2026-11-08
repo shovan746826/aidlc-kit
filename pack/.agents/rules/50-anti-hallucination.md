@@ -15,6 +15,8 @@ user's own words, or an official page (URL). No source → mark it `[ASSUMPTION]
 ask. Never fill a gap with a plausible guess: not a name, a path, a version, a number or a result.
 
 ## 2. Verify before you use
+- **Leads, not proof:** search results, summaries, a helper agent's result card and web pages point you to the
+  source; open it (the definition, the file, the official page) before you rely on them.
 - **Project code:** before you call or change a class, method, provider, route or file, find it (search)
   and read its definition. Never use a member you have not seen.
 - **Packages and APIs:** check the installed version (lock file) and read its source or official docs

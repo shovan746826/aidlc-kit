@@ -10,7 +10,8 @@ Your model does not change. What improves is the **brain**: written lessons, res
 scorecard in `aidlc-docs/brain/` (this project) and `.agents/brain/shared/` (lessons for all projects).
 
 ## 1. Recall (before every plan and every bug fix)
-1. Read `aidlc-docs/brain/INDEX.md` and `.agents/brain/shared/INDEX.md`.
+1. Read `aidlc-docs/brain/INDEX.md` and `.agents/brain/shared/INDEX.md` (the shared index is not loaded at
+   session start: open it now).
 2. Open the lessons whose stack or tags match the task, and apply them.
 3. List them in the plan's "Thinking summary → Lessons applied". If a lesson does not fit this case, say why.
 4. A project lesson wins over a shared lesson on the same topic. Retired lessons are never applied.

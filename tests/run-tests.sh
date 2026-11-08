@@ -600,7 +600,7 @@ check "v1 flutter-reviewer backed up" sh -c "find '$H/.aidlc-kit/backups' -name 
 check "settings.json is valid JSON" jq empty "$H/.claude/settings.json"
 check "other settings kept" sh -c "jq -e '.model == \"opus\"' '$H/.claude/settings.json'"
 check "user's own hook kept" contains "$H/.claude/settings.json" "echo user-hook"
-for h in plan-gate auto-format session-start learn-hint plan-check subagent-start; do expect_rc "hook $h registered once" 1 "$(hooks_count $h)"; done
+for h in plan-gate shell-gate auto-format session-start learn-hint plan-check subagent-start; do expect_rc "hook $h registered once" 1 "$(hooks_count $h)"; done
 check "shared brain installed in ~/.aidlc-kit/brain" test -f "$H/.aidlc-kit/brain/INDEX.md"
 check "brain.sh installed" test -f "$H/.aidlc-kit/brain.sh"
 check "tokens.sh installed and executable" test -x "$H/.aidlc-kit/tokens.sh"
@@ -610,10 +610,10 @@ check "CLAUDE.md user text kept" contains "$H/.claude/CLAUDE.md" "# My global ru
 expect_rc "GEMINI.md block added once" 1 "$(count_in "$H/.gemini/GEMINI.md" "AIDLC:BEGIN")"
 check "GEMINI.md user text kept" contains "$H/.gemini/GEMINI.md" "# My Gemini rules"
 AGY="$H/.gemini/config/hooks.json"; GCLI="$H/.gemini/settings.json"
-check "Antigravity: plan gate (PreToolUse on file edits) and plan check (Stop) registered" python3 -c 'import json, sys
+check "Antigravity: plan gate (PreToolUse on file edits and run_command) and plan check (Stop) registered" python3 -c 'import json, sys
 d = json.load(open(sys.argv[1]))
 g = d["aidlc-plan-gate"]["PreToolUse"][0]
-assert g["matcher"] == "write_to_file|replace_file_content|multi_replace_file_content"
+assert g["matcher"] == "write_to_file|replace_file_content|multi_replace_file_content|run_command"
 assert g["hooks"][0]["command"].endswith("antigravity.sh\" pre-tool")
 assert d["aidlc-plan-check"]["Stop"][0]["command"].endswith("antigravity.sh\" stop")' "$AGY"
 check "Antigravity: your own hooks are kept" contains "$AGY" "echo my-agy-hook"
@@ -879,7 +879,7 @@ new_repo "$GP" >/dev/null 2>&1
 (cd "$KIT" && gh_env bash install.sh) >"$TMP/step1.out" 2>&1
 expect_rc "step 1: cd aidlc-kit && bash install.sh (new machine: no ~/.claude, no ~/.gemini)" 0 "$?"
 n_hooks="$(grep -o 'aidlc-kit/claude/hooks/[a-z-]*\.sh' "$GH/.claude/settings.json" 2>/dev/null | sort -u | wc -l | tr -d ' ')"
-expect_rc "step 1 registers the 6 hooks in a new settings.json" 6 "$n_hooks"
+expect_rc "step 1 registers the 7 hooks in a new settings.json" 7 "$n_hooks"
 check "step 1 creates ~/.claude/CLAUDE.md with the plan-first rule" contains "$GH/.claude/CLAUDE.md" "AIDLC:BEGIN"
 check "step 1 creates ~/.gemini/GEMINI.md with the plan-first rule" contains "$GH/.gemini/GEMINI.md" "AIDLC:BEGIN"
 check "step 1 prints the commands for steps 2 and 3" contains "$TMP/step1.out" "git add AGENTS.md CLAUDE.md GEMINI.md .agents aidlc-docs .gitignore && git commit"
@@ -1484,6 +1484,135 @@ for s in aidlc-construction aidlc-feature aidlc-bugfix; do check "$s points to t
 check "AGENTS.md, CLAUDE.md, GEMINI.md and /aidlc name the protocol" sh -c "grep -q 'aidlc-multi-agent' '$KIT/pack/AGENTS.md' && grep -q 'aidlc-builder' '$KIT/pack/CLAUDE.md' && grep -q 'invoke_subagent' '$KIT/pack/GEMINI.md' && grep -q 'aidlc-multi-agent' '$KIT/claude/skills/aidlc/SKILL.md'"
 check "doctor knows the new skill" contains "$KIT/claude/bin/doctor.sh" "aidlc-anti-hallucination aidlc-multi-agent"
 check "GUIDE explains several agents" grep -q '^### 4.8 Several agents' "$KIT/GUIDE.md"
+
+# =====================================================================================================
+section "17. Shell gate (Bash, run_command), lessons on demand, stricter plan checks, CI"
+SG="$KIT/claude/hooks/shell-gate.sh"
+python3 - "$KIT/claude/hooks/shell-targets.py" > "$TMP/st.out" 2>&1 <<'PY'
+import os, subprocess, sys, tempfile
+script = sys.argv[1]
+P = tempfile.mkdtemp()
+os.makedirs(os.path.join(P, "lib"), exist_ok=True); os.makedirs(os.path.join(P, "build"), exist_ok=True)
+for f in ("lib/a.g.dart", "lib/b.g.dart", "lib/a.dart", "a.txt"):
+    open(os.path.join(P, f), "w").close()
+H = os.path.expanduser("~")
+cases = [
+  ("ls -la", []), ("echo hi > lib/a.dart", ["lib/a.dart"]), ("echo hi >> notes.txt", ["notes.txt"]),
+  ("cmd 2>/dev/null", []), ("cmd > /dev/null 2>&1", []), ("flutter test > out.txt 2>&1", ["out.txt"]),
+  ("cat <<'EOF' > lib/b.dart\nclass B {}\n<div> x > y\nEOF\necho done", ["lib/b.dart"]),
+  ("printf 'a > b'", []), ("grep -rn \"x > y\" lib", []),
+  ("sed -i '' 's/a/b/' lib/a.dart", ["lib/a.dart"]), ("sed -i.bak -e 's/a/b/' lib/a.dart lib/c.dart", ["lib/a.dart", "lib/c.dart"]),
+  ("sed 's/a/b/' lib/a.dart", []), ("sed -Ei 's/a/b/' x.txt", ["x.txt"]), ("perl -pi -e 's/a/b/' lib/a.dart", ["lib/a.dart"]),
+  ("cp a.txt lib/", ["lib/a.txt"]), ("cp -R src dst", ["dst"]), ("mv old.dart new.dart", ["old.dart", "new.dart"]),
+  ("rm -rf build lib/x.dart", ["build/", "lib/x.dart"]), ("rm lib/*.g.dart", ["lib/a.g.dart", "lib/b.g.dart"]),
+  ("touch a b", ["a", "b"]), ("cd lib && echo x > z.dart", ["lib/z.dart"]), ("cd lib\necho x > y.dart", ["lib/y.dart"]),
+  ("sed -i \\\n  's/a/b/' f.txt", ["f.txt"]), ("echo a; echo b > c", ["c"]),
+  ("git checkout -- lib/a.dart", ["lib/a.dart"]), ("git checkout -b feature/x", []), ("git restore --staged lib/a.dart", []),
+  ("git restore lib/a.dart", ["lib/a.dart"]), ("git reset --hard", [""]), ("git reset HEAD~1", []), ("git clean -fd", [""]),
+  ("git clean -n", []), ("git status && git diff", []), ("git rm lib/a.dart", ["lib/a.dart"]), ("git rm --cached lib/a.dart", []),
+  ("git mv a.txt lib/a2.txt", ["a.txt", "lib/a2.txt"]), ("git -C lib checkout -- a.dart", ["lib/a.dart"]),
+  ("dart format lib/a.dart", ["lib/a.dart"]), ("dart format --output=none --set-exit-if-changed .", []),
+  ("npx prettier --write src/app.ts", ["src/app.ts"]), ("prettier --check src", []), ("eslint --fix src", ["src"]),
+  ("black --check .", []), ("black app.py", ["app.py"]), ("ruff check --fix", [""]), ("ruff format src", ["src"]),
+  ("gofmt -w main.go", ["main.go"]), ("gofmt -l .", []),
+  ("flutter pub add http", ["pubspec.yaml"]), ("flutter pub get", []), ("dart pub remove x", ["pubspec.yaml"]),
+  ("npm install", []), ("npm install express", ["package.json"]), ("npm i -D jest", ["package.json"]), ("npm run build", []),
+  ("yarn add x", ["package.json"]), ("pnpm add x", ["package.json"]), ("bun add x", ["package.json"]),
+  ("composer require a/b", ["composer.json"]), ("poetry add x", ["pyproject.toml"]), ("uv add x", ["pyproject.toml"]),
+  ("cargo add serde", ["Cargo.toml"]), ("go get example.com/x", ["go.mod"]),
+  ("echo x > \"$OUT\"", []), ("cp a b $DEST", []), ("bash -c 'echo x > lib/q.dart'", ["lib/q.dart"]),
+  ("tee -a log.txt < in.txt", ["log.txt"]), ("echo x | tee /dev/null", []), ("dd if=/dev/zero of=disk.img bs=1 count=1", ["disk.img"]),
+  ("ln -s target link", ["link"]), ("truncate -s 0 a.log", ["a.log"]), ("echo 'unterminated", []),
+  ("FOO=1 sudo tee /etc/hosts", ["/etc/hosts"]), ("cmd > ~/x.txt", [H + "/x.txt"]), ("exec > log.txt", ["log.txt"]),
+  (": > lib/empty.dart", ["lib/empty.dart"]), (">lib/x.dart", ["lib/x.dart"]), ("echo x >| f", ["f"]), ("cat a &> both.log", ["both.log"]),
+  ("npm install -g typescript", []), ("touch -t 202001010000 f.txt", ["f.txt"]), ("[[ a > b ]] && echo ok", []),
+  ("if (( n > 3 )); then echo big; fi", []), ("echo $((1 > 0)) > r.txt", ["r.txt"]), ("find . -name '*.dart' | xargs grep x", []),
+  ("git log -p -- lib/a.dart", []), ("flutter analyze 2>&1 | tail -n 40", []), ("cat a.txt | sed 's/x/y/'", []),
+  ("D=lib; echo x > \"$D/v.dart\"", ["lib/v.dart"]), ("export D=lib && echo x > ${D}/w.dart", ["lib/w.dart"]),
+  ("D=lib; cd \"$D\" && touch k.dart", ["lib/k.dart"]), ("echo x > \"$UNKNOWN/a\"", []), ("echo x > $HOME/h.txt", [H + "/h.txt"]),
+  ("D=lib; bash -c 'echo x > $D/u.dart'", []), ("export D=lib; bash -c 'echo x > $D/u.dart'", ["lib/u.dart"]),
+  ("D=lib echo x > $D/p.dart", []), ("sed -i '' 's/$/;/' lib/a.dart", ["lib/a.dart"]),
+  ("rsync -a src/ user@host:/x", []), ("echo $(cat a.txt) > y.txt", ["y.txt"]), ("cat a.txt | wc -l", []),
+]
+
+for cmd, want in cases:
+    exp = sorted((w if w.startswith("/") else os.path.normpath(os.path.join(P, w)) + ("/" if w in ("", "build/") else "")) for w in want)
+    exp = [e.replace("//", "/") for e in exp]
+    got = sorted(l for l in subprocess.run([sys.executable, "-I", script, P], input=cmd, capture_output=True, text=True).stdout.splitlines() if l)
+    name = repr(cmd)[:72]
+    print(("OK\t" + name) if got == exp else ("BAD\t%s (want %s, got %s)" % (name, [os.path.relpath(e, P) for e in exp], [os.path.relpath(g, P) for g in got])))
+PY
+n_st=0
+while IFS="$(printf '\t')" read -r kind desc; do
+  case "$kind" in OK) ok "shell targets: $desc"; n_st=$((n_st + 1)) ;; BAD) bad "shell targets: $desc" ;; *) bad "shell targets: $kind $desc" ;; esac
+done < "$TMP/st.out"
+[ "$n_st" -gt 80 ] || bad "shell targets: the cases ran ($n_st passed)"
+
+jstr() { printf '%s' "$1" | jq -Rs .; }
+sgate() { printf '{"tool_name":"Bash","cwd":"%s","tool_input":{"command":%s}%s}' "$1" "$(jstr "$2")" "$3" | bash "$SG" >/dev/null 2>"$TMP/sg.err"; echo $?; }
+expect_rc "shell gate (no approved plan): a redirect into code is blocked" 2 "$(sgate "$AP" 'echo x > lib/app.js' '')"
+check "... with the gate's message and the shell note" sh -c "grep -q 'AI-DLC plan gate: blocked a change to lib/app.js' '$TMP/sg.err' && grep -q 'Shell commands count as file changes' '$TMP/sg.err'"
+expect_rc "shell gate: sed -i on code is blocked" 2 "$(sgate "$AP" "sed -i '' 's/a/b/' lib/app.js" '')"
+expect_rc "shell gate: git reset --hard is blocked (every file)" 2 "$(sgate "$AP" 'git reset --hard' '')"
+expect_rc "shell gate: reading commands run" 0 "$(sgate "$AP" 'ls -la && cat package.json | grep express' '')"
+expect_rc "shell gate: tests with output to /dev/null run" 0 "$(sgate "$AP" 'npm test > /dev/null 2>&1' '')"
+expect_rc "shell gate: writing a planning document runs" 0 "$(sgate "$AP" 'echo n > aidlc-docs/work/notes.md' '')"
+expect_rc "shell gate: writing outside the project runs" 0 "$(sgate "$AP" "echo x > '$TMP/outside.txt'" '')"
+expect_rc "shell gate (approved plan): a planned file may be written" 0 "$(sgate "$MP" 'echo x > lib/a.dart' '')"
+expect_rc "shell gate: an unplanned file is blocked" 2 "$(sgate "$MP" 'cd lib && echo x > b.dart' '')"
+expect_rc "shell gate: a helper can't write the state file" 2 "$(sgate "$MP" 'echo x > aidlc-docs/aidlc-state.md' ',"agent_id":"a1","agent_type":"general-purpose"')"
+expect_rc "shell gate: a read-only role can't write code, not even a planned file" 2 "$(sgate "$MP" 'echo x > lib/a.dart' ',"agent_id":"a1","agent_type":"aidlc-tester"')"
+expect_rc "shell gate: AIDLC_ENFORCE=off lets everything run" 0 "$(AIDLC_ENFORCE=off sgate "$AP" 'echo x > lib/app.js' '')"
+NOPY="$TMP/no python"; mkdir -p "$NOPY"
+for t in bash cat dirname grep sed awk printenv tail cut tr head jq env; do p="$(command -v "$t")" && ln -sf "$p" "$NOPY/$t"; done
+out_rc="$(printf '{"tool_name":"Bash","cwd":"%s","tool_input":{"command":"echo x > lib/app.js"}}' "$AP" | PATH="$NOPY" "$(command -v bash)" "$SG" >/dev/null 2>&1; echo $?)"
+expect_rc "shell gate: without python3 it fails open (the command runs)" 0 "$out_rc"
+agyrun() { printf '{"workspacePaths":["%s"],"toolCall":{"name":"run_command","args":{"CommandLine":%s,"Cwd":"%s"}}}' "$1" "$(jstr "$2")" "$3" | TMPDIR="$AT" bash "$AG" pre-tool; }
+agyrun "$AP" 'echo x > lib/app.js' "$AP" | grep -q '"decision":"deny"' && ok "Antigravity run_command: a write into code is denied" || bad "Antigravity run_command: a write into code is denied"
+agyrun "$AP" 'echo x > app.js' "$AP/lib" | grep -q 'lib/app.js' && ok "Antigravity run_command: the command's Cwd is used" || bad "Antigravity run_command: the command's Cwd is used"
+[ "$(agyrun "$AP" 'ls -la' "$AP")" = '{"decision":"allow"}' ] && ok "Antigravity run_command: a reading command is allowed" || bad "Antigravity run_command: a reading command is allowed"
+SHS="$TMP/settings-shell.json"; printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo mine"}]}]}}' > "$SHS"
+( . "$KIT/lib/kit.sh"; settings_hooks add "$SHS" "$KIT/claude/hooks"; settings_hooks add "$SHS" "$KIT/claude/hooks" ) >/dev/null 2>&1
+check "settings: the shell gate is a Bash hook, once, next to the plan gate and your own Bash hook" python3 -c 'import json, sys
+d = json.load(open(sys.argv[1]))["hooks"]["PreToolUse"]
+cmds = [h["command"] for e in d for h in e["hooks"]]
+assert sum("shell-gate.sh" in c for c in cmds) == 1 and sum("plan-gate.sh" in c for c in cmds) == 1 and "echo mine" in cmds
+assert any(e.get("matcher") == "Bash" and "shell-gate.sh" in e["hooks"][0]["command"] for e in d)' "$SHS"
+KB="$TMP/kit big"; cp -R "$KIT" "$KB"; awk 'BEGIN { for (i = 0; i < 120; i++) printf "- [S-9%02d](lessons/x.md) · rule · any · t · padding padding padding padding · ✓0 ✗0\n", i }' >> "$KB/brain/INDEX.md"
+AIDLC_KIT_HOME="$KB" HOME="$TMP/no home" bash "$KB/claude/bin/doctor.sh" --machine > "$TMP/doc-big.out" 2>&1
+check "doctor: warns when the shared lessons index is over its 8 KB budget" contains "$TMP/doc-big.out" "over its 8192-byte budget"
+
+# Stricter plan checks.
+VP3="$MP/aidlc-docs/work/003-z/implementation_plan.md"; mkdir -p "$(dirname "$VP3")"
+printf '# Plan\n> Status: DRAFT\n> Type: change\n- Depth: light (small)\n**Agent plan:** pipeline\n## 14. Task plan\n- [ ] ⏳ **[PENDING]** T1 A\n' > "$VP3"
+bash "$KIT/verify-plan.sh" "$VP3" > "$TMP/vp3.out" 2>&1
+check "verify-plan: a draft plan without a Facts table is a problem" grep -q '✗ no "Facts and assumptions" table' "$TMP/vp3.out"
+check "verify-plan: a light plan with helper agents gets a warning" contains "$TMP/vp3.out" "a light plan with Agent plan pipeline"
+sed 's/Status: DRAFT/Status: APPROVED 2026-11-08 14:00/' "$VP3" > "$TMP/vp3b.md" && cat "$TMP/vp3b.md" > "$VP3"
+bash "$KIT/verify-plan.sh" "$VP3" > "$TMP/vp3.out" 2>&1
+check "verify-plan: an approved older plan without it only gets a warning" sh -c "grep -q '! no \"Facts and assumptions\" table' '$TMP/vp3.out' && ! grep -q '✗ no \"Facts and assumptions\"' '$TMP/vp3.out'"
+
+# The shared lessons index is read when planning, not loaded at every start.
+check "CLAUDE.md and GEMINI.md no longer import the shared lessons index" sh -c "! grep -q '^@.*brain/shared/INDEX.md' '$KIT/pack/CLAUDE.md' && ! grep -q '^@.*brain/shared/INDEX.md' '$KIT/pack/GEMINI.md'"
+check "... but still import the project's own index" sh -c "grep -q '^@aidlc-docs/brain/INDEX.md' '$KIT/pack/CLAUDE.md' && grep -q '^@./aidlc-docs/brain/INDEX.md' '$KIT/pack/GEMINI.md'"
+check "rule 30: the recall step opens the shared index" contains "$KIT/pack/.agents/rules/30-learning.md" "the shared index is not loaded at"
+check "rule 50: search results and helper reports are leads, not proof" contains "$KIT/pack/.agents/rules/50-anti-hallucination.md" "**Leads, not proof:**"
+check "multi-agent handoff names the lessons that apply" contains "$KIT/pack/.agents/skills/aidlc-multi-agent/SKILL.md" "lessons <IDs that apply>"
+printf '{"cwd":"%s"}' "$AP" | bash "$KIT/claude/hooks/session-start.sh" > "$TMP/ss.out" 2>&1
+check "session start: the brain line names the shared index to read" contains "$TMP/ss.out" "the shared index is not preloaded"
+
+# CI on GitHub.
+WF="$KIT/.github/workflows/tests.yml"
+check "CI: runs the tests on macOS and Linux" sh -c "grep -q 'bash tests/run-tests.sh' '$WF' && grep -q 'os: macos-latest' '$WF' && grep -q 'os: ubuntu-latest' '$WF'"
+check "CI: macOS must pass, Linux is reported" python3 -c 'import re, sys
+t = open(sys.argv[1]).read()
+assert re.search(r"os: macos-latest\s+experimental: false", t) and re.search(r"os: ubuntu-latest\s+experimental: true", t)
+assert "continue-on-error: ${{ matrix.experimental }}" in t' "$WF"
+if command -v ruby >/dev/null 2>&1; then
+  check "CI: the workflow is valid YAML" ruby -e 'require "yaml"; YAML.load_file(ARGV[0])' "$WF"
+else
+  skip "CI YAML check needs ruby"
+fi
 
 # =====================================================================================================
 printf '\nResult: %d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"

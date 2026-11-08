@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.4.0 (2026-11-08)
+
+**Gap fixes from a full analysis of the kit.** The biggest: shell commands could change files without a plan.
+- **Shell gate** (`claude/hooks/shell-gate.sh` + `shell-targets.py`): before a shell command runs (Claude Code
+  `Bash`, Antigravity `run_command`), it finds the files the command would write and asks the plan gate about
+  each one, with the same rules and messages, helper agents included. It reads redirects, `tee`, `sed -i`,
+  `perl -i`, `cp`, `mv`, `rm`, `touch`, `truncate`, `ln`, `dd of=`, `git checkout -- / restore / rm / mv`,
+  `git reset --hard`, `git clean -f`, formatters that write, package commands that change a manifest, and `cd` or
+  `bash -c` inside a command; heredoc text is skipped; variables the command sets itself and `$HOME` are filled
+  in. It fails open when it can't tell (another variable or `$(…)` as the target, scripts, code generators, no python3). Reading commands skip the parser.
+- **Leaner context:** the shared lessons index is no longer imported by `CLAUDE.md` and `GEMINI.md` (it was about
+  10 KB in every session and every builder agent, and it grows with the brain). The recall step (rule 30 §1)
+  and the session-start line say to read it before every plan and bug fix; the handoff card names the lessons
+  that apply. The project's own index still loads at start.
+- **Doctor** warns when the shared lessons index is over its 8 KB budget, and reports the shell-gate hook.
+- **`verify-plan.sh`:** a draft plan without a Facts table is now a problem (approved and completed plans from
+  before v2.7 only get a warning); a light plan with `pipeline` or `parallel` agents gets a warning.
+- **Rule 50:** search results, summaries, helper result cards and web pages are leads, not proof.
+- **CI:** `.github/workflows/tests.yml` runs the tests on every push and pull request; macOS must pass, Linux is
+  reported.
+- Tests: section 17 (100 shell commands, the shell gate, Antigravity `run_command`, registration, the budget
+  warning, the stricter plan checks, lesson loading, CI): 744 checks (was 612).
+
 ## 3.3.0 (2026-11-08)
 
 **Several agents at once: the multi-agent protocol.** The agent you talk to is the lead; helper agents work

@@ -1,4 +1,4 @@
-# AI-DLC Kit v3.3
+# AI-DLC Kit v3.4
 
 **AI-Driven Development Lifecycle for every project and every AI agent, with a brain that learns.**
 The agent analyzes, asks questions, thinks the plan through, and waits for your approval. Only then does it
@@ -31,7 +31,8 @@ are set up separately.
 
 ## What you get
 - **Plan first, always.** No file changes without an approved plan. Claude Code, Antigravity and Gemini CLI
-  enforce it with a hook (the same plan gate).
+  enforce it with a hook (the same plan gate). In Claude Code and Antigravity, shell commands that write files
+  (`>`, `sed -i`, `cp`, `rm`, `git reset --hard`, `flutter pub add`, …) go through the same gate.
 - **Questions before every plan**, multiple choice with a ★ recommendation. Nothing is guessed.
 - **Several agents at once (multi-agent):** the agent you talk to is the lead; helper agents work beside it. An
   analyst prepares the next step while a builder codes the current one, a tester runs the checks, a debugger
@@ -125,12 +126,14 @@ aidlc-kit/
 ├── standards/                  flutter (v3 + reference/ code) · android · ios · backend · generic → project-architecture skill + 20-architecture rule
 ├── brain/                      shared-brain starter: 28 verified lessons (updates refresh the ones you never edited)
 ├── claude/                     Claude Code: /aidlc · 6 role agents (analyst, builder, tester, debugger, researcher, reviewer;
-│                               also rendered for Antigravity) · hooks (plan gate, plan check, session, subagent start,
-│                               auto-format, learning hint) · doctor · antigravity.sh (Antigravity: plan gate, plan check;
-│                               Gemini CLI uses plan-gate.sh)
+│                               also rendered for Antigravity) · hooks (plan gate, shell gate + shell-targets.py,
+│                               plan check, session, subagent start, auto-format, learning hint) · doctor ·
+│                               antigravity.sh (Antigravity: plan gate incl. run_command, plan check; Gemini CLI uses
+│                               plan-gate.sh)
 ├── global/                     plan-first rules for ~/.claude/CLAUDE.md and ~/.gemini/GEMINI.md
 ├── lib/kit.sh                  shared script helpers
-└── tests/                      run-tests.sh (612 checks) · flutter-standard-check.sh (compiles the Flutter standard)
+├── .github/workflows/tests.yml  the tests on every push (macOS must pass; Linux is reported)
+└── tests/                      run-tests.sh (744 checks) · flutter-standard-check.sh (compiles the Flutter standard)
 ```
 
 ## Settings (`~/.aidlc-kit/config` or environment variables)

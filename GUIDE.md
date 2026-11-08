@@ -84,10 +84,10 @@ Android 14", "prepare release 1.3.0".
 
 | Agent | Loads automatically | Notes |
 |---|---|---|
-| **Claude Code** | `CLAUDE.md` → imports `AGENTS.md`, the 6 rule files and both brain indexes | Claude Code reads `AGENTS.md` by itself only when there is no `CLAUDE.md`, and never reads `.agents/`: the imports load everything. Skills in `.agents/skills/` are read when the rules route to them; `/aidlc` routes for you. Hooks: plan gate, plan check, session context, auto-format, learning hint. |
-| **Antigravity** | `.agents/rules/*.md` (with `trigger: always_on`), `.agents/skills/`, `AGENTS.md`, `GEMINI.md` | Use Planning mode and let the agent ask for your review before changes. Hooks (from `install.sh`): the plan gate on every file edit, the plan check when the agent ends its turn. Limits (official docs): 24,000 bytes per rule file; always-on and global rules share 20,000 tokens (`doctor` checks both). |
+| **Claude Code** | `CLAUDE.md` → imports `AGENTS.md`, the 6 rule files and the project's brain index (the shared lessons index is read when planning) | Claude Code reads `AGENTS.md` by itself only when there is no `CLAUDE.md`, and never reads `.agents/`: the imports load everything. Skills in `.agents/skills/` are read when the rules route to them; `/aidlc` routes for you. Hooks: plan gate, shell gate, plan check, session context, subagent start, auto-format, learning hint. |
+| **Antigravity** | `.agents/rules/*.md` (with `trigger: always_on`), `.agents/skills/`, `AGENTS.md`, `GEMINI.md` | Use Planning mode and let the agent ask for your review before changes. Hooks (from `install.sh`): the plan gate on every file edit and `run_command`, the plan check when the agent ends its turn. Limits (official docs): 24,000 bytes per rule file; always-on and global rules share 20,000 tokens (`doctor` checks both). |
 | **Gemini CLI** | `GEMINI.md` → imports `AGENTS.md` and the rule files; skills in `.agents/skills/` | Hook (from `install.sh`): the plan gate on `write_file` and `replace`. |
-| **Gemini in Android Studio** | `GEMINI.md` (it wins over `AGENTS.md` in the same folder) → `@` imports `AGENTS.md`, the rule files and both brain indexes | `AGENTS.md` and imports need Android Studio Narwhal 4 Feature Drop or newer. |
+| **Gemini in Android Studio** | `GEMINI.md` (it wins over `AGENTS.md` in the same folder) → `@` imports `AGENTS.md`, the rule files and the project's brain index | `AGENTS.md` and imports need Android Studio Narwhal 4 Feature Drop or newer. |
 | **Other agents** (Codex, Cursor, Copilot, …) | `AGENTS.md` | Same pointers. |
 
 Global rule for **every** project, even without the pack: `~/.claude/CLAUDE.md` (Claude Code) and
@@ -267,7 +267,9 @@ Reply: approve · change: <what> · stop
 
 The same `plan-gate.sh` runs before every file edit by the agent: in Claude Code as a `PreToolUse` hook, in
 Gemini CLI as a `BeforeTool` hook, and in Antigravity as a `PreToolUse` hook through `antigravity.sh`, which
-turns the gate's answer into Antigravity's `allow` / `deny`. All three agents get the same rules and messages:
+turns the gate's answer into Antigravity's `allow` / `deny`. Before every shell command (Claude Code `Bash`,
+Antigravity `run_command`), the **shell gate** (`shell-gate.sh`) finds the files the command would write and asks
+the plan gate about each one. All three agents get the same rules and messages:
 
 | Situation | Result |
 |---|---|
@@ -278,6 +280,7 @@ turns the gate's answer into Antigravity's `allow` / `deny`. All three agents ge
 | Gate open, but the plan still says `DRAFT` (or has no status line) | **blocked**: "not approved" |
 | Gate open, file not listed | **blocked**: "use the plan change procedure" |
 | Project without the pack | allowed (unless `AIDLC_ENFORCE=all-repos`) |
+| A shell command that writes a project file (`>`, `tee`, `sed -i`, `cp`, `mv`, `rm`, `git reset --hard`, `dart format`, `flutter pub add`, …) | like an edit of that file; a folder counts as all its files |
 | An edit by a helper agent (a Claude Code subagent: the hook input has `agent_id`) | plans, the state file, the audit log, rules and the brain: **blocked** (only the lead changes them); its notes in `aidlc-docs/work/<item>/agents/`: allowed; the read-only roles (analyst, tester, debugger, researcher, reviewer): code **blocked** |
 
 Plan entries can be exact paths (`lib/a.dart`), folders ending in `/` (`assets/images/`) or globs
@@ -296,14 +299,20 @@ Settings live in `~/.aidlc-kit/config`, or as environment variables for one sess
 git does not track yet (new files), so existing code is never reformatted. Dart uses `dart format` (FVM aware); Kotlin, Swift, JS/TS, Python and Go are formatted only if
 the project has the tool and its config.
 
-**Limits:** the hook guards Claude's file-edit tools. Shell commands that write files are forbidden by the
-rules, not blocked by the hook; `verify-plan.sh --done` still finds such changes after the build. Gemini in
+**Limits:** the shell gate reads the usual ways a command writes files: redirects (`>`, `>>`, `&>`), `tee`,
+`sed -i`, `perl -i`, `cp`, `mv`, `rm`, `touch`, `truncate`, `ln`, `dd of=`, `git checkout -- / restore / rm / mv`,
+`git reset --hard`, `git clean -f`, formatters that write (`dart format`, `prettier --write`, `eslint --fix`,
+`black`, `ruff`, `gofmt -w`), package commands that change a manifest (`flutter pub add`, `npm install <pkg>`,
+`composer require`, `poetry add`, `uv add`, `cargo add`, `go get`), and `cd` or `bash -c` inside a command. It
+fills in the variables the command sets itself (`D=lib; echo x > "$D/a.dart"`) and `$HOME`. It lets a command
+run when it can't tell: another variable or `$(…)` as the target, scripts, code generators
+(`build_runner`), or no python3. `verify-plan.sh --done` still finds those changes after the build. Gemini in
 Android Studio has no hooks: there the always-on rules apply. In Antigravity, `AIDLC_ENFORCE=off` in
 `~/.aidlc-kit/config` pauses the gate (there is no per-session variable as in Claude Code).
 
 **Antigravity** (the app, the IDE and the Antigravity CLI, which replaced Gemini CLI for personal Google
 accounts on 2026-06-18) reads the hooks from `~/.gemini/config/hooks.json` (installed by `install.sh`): `aidlc-plan-gate`
-on `write_to_file`, `replace_file_content` and `multi_replace_file_content`, and `aidlc-plan-check` when the
+on `write_to_file`, `replace_file_content`, `multi_replace_file_content` and `run_command`, and `aidlc-plan-check` when the
 agent ends its turn. **Your one-minute check:** open an AI-DLC project in Antigravity, and with no approved plan
 ask the agent to change a source file: the edit is refused with "AI-DLC plan gate: blocked a change to …".
 
@@ -390,7 +399,8 @@ aidlc-docs/brain/            this project (committed with the code)
 ```
 
 **The loop**
-1. **Recall:** before every plan the agent reads both indexes and lists the lessons it applies.
+1. **Recall:** before every plan the agent reads both indexes and lists the lessons it applies. The project's
+   index loads at every start; the shared one only when planning, so it costs nothing in other sessions.
 2. **Capture:** a row goes into the inbox the moment something happens: your correction · a failed
    test/build/analyzer · a review finding · a plan change · a surprise · a research decision · a pattern
    that worked. Evidence is required.

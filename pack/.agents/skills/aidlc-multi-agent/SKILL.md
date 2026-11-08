@@ -36,12 +36,12 @@ report back. Every stage, gate and check of the normal flow stays the same.
 Notes: `aidlc-docs/work/<item>/agents/<task>-<role>.md`. Helpers can't start helpers and can't ask the user.
 
 ## M3. Handoff card (you → helper)
-A helper doesn't see the conversation: the card and the files are all it has. Name every file; never paste file
-contents into the card.
+A helper doesn't see the conversation: the card and the files are all it has. Name every file and the lessons
+that apply (helpers don't load the shared lessons index); never paste file contents into the card.
 ```
 AI-DLC handoff · <work item> · <task> · <role>
 Goal: <one line>
-Read: <plan path> §14 <task> · <notes> · <files>
+Read: <plan path> §14 <task> · <notes> · <files> · lessons <IDs that apply>
 Own: `<file>`, …  (builder) | none
 Done when: <the task's Check: command and expected result>
 Return: the result card; details → aidlc-docs/work/<item>/agents/<task>-<role>.md

@@ -102,15 +102,17 @@ settings_hooks() {
        --arg ses "bash \"$hooks/session-start.sh\"" \
        --arg hint "bash \"$hooks/learn-hint.sh\"" \
        --arg check "bash \"$hooks/plan-check.sh\"" \
-       --arg sub "bash \"$hooks/subagent-start.sh\"" '
-      def ours: (.command // "") | test("claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check|subagent-start)\\.sh");
+       --arg sub "bash \"$hooks/subagent-start.sh\"" \
+       --arg shell "bash \"$hooks/shell-gate.sh\"" '
+      def ours: (.command // "") | test("claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check|subagent-start|shell-gate)\\.sh");
       def clean: map(if ((.hooks // []) | length) > 0 and ((.hooks // []) | all(ours))
                      then empty
                      else .hooks = ((.hooks // []) | map(select(ours | not))) end);
       if $action == "add" then
         .hooks = (.hooks // {})
         | .hooks.PreToolUse = (((.hooks.PreToolUse // []) | clean)
-            + [{matcher: "Edit|Write|MultiEdit|NotebookEdit", hooks: [{type: "command", command: $gate, timeout: 15}]}])
+            + [{matcher: "Edit|Write|MultiEdit|NotebookEdit", hooks: [{type: "command", command: $gate, timeout: 15}]},
+               {matcher: "Bash", hooks: [{type: "command", command: $shell, timeout: 15}]}])
         | .hooks.PostToolUse = (((.hooks.PostToolUse // []) | clean)
             + [{matcher: "Edit|Write|MultiEdit", hooks: [{type: "command", command: $fmt, timeout: 60},
                                                         {type: "command", command: $check, timeout: 30}]}])
@@ -134,7 +136,7 @@ import json, re, sys
 action, path, hooks = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(path, encoding="utf-8") as f:
     data = json.load(f)
-ours = re.compile(r"claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check|subagent-start)\.sh")
+ours = re.compile(r"claude/hooks/(plan-gate|auto-format|session-start|learn-hint|plan-check|subagent-start|shell-gate)\.sh")
 
 def clean(groups):
     result = []
@@ -154,16 +156,19 @@ if action == "add":
         return 'bash "%s/%s"' % (hooks, name)
     wanted = [
         ("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", [("plan-gate.sh", 15)]),
+        ("PreToolUse", "Bash", [("shell-gate.sh", 15)]),
         ("PostToolUse", "Edit|Write|MultiEdit", [("auto-format.sh", 60), ("plan-check.sh", 30)]),
         ("SessionStart", None, [("session-start.sh", 15)]),
         ("UserPromptSubmit", None, [("learn-hint.sh", 10)]),
         ("SubagentStart", None, [("subagent-start.sh", 10)]),
     ]
+    for event in dict.fromkeys(e for e, _m, _c in wanted):   # one event can get several entries
+        all_hooks[event] = clean(all_hooks.get(event) or [])
     for event, matcher, commands in wanted:
         entry = {"hooks": [{"type": "command", "command": cmd(name), "timeout": timeout} for name, timeout in commands]}
         if matcher:
             entry = {"matcher": matcher, **entry}
-        all_hooks[event] = clean(all_hooks.get(event) or []) + [entry]
+        all_hooks[event].append(entry)
     data["hooks"] = all_hooks
 elif isinstance(all_hooks, dict):
     for event in list(all_hooks):
@@ -182,7 +187,8 @@ PY
 }
 
 # antigravity_hooks <add|remove> <hooks.json> <hooks dir>: the AI-DLC hooks in Google Antigravity's global hooks
-# file (~/.gemini/config/hooks.json): "aidlc-plan-gate" (PreToolUse on file edits) and "aidlc-plan-check" (Stop).
+# file (~/.gemini/config/hooks.json): "aidlc-plan-gate" (PreToolUse on file edits and run_command) and
+# "aidlc-plan-check" (Stop).
 # The user's own hooks are kept; a file that "remove" leaves empty is deleted.
 antigravity_hooks() {
   local action="$1" file="$2" hooks="$3" tool tmp
@@ -197,7 +203,7 @@ antigravity_hooks() {
        --arg check "bash \"$hooks/antigravity.sh\" stop" '
       del(.["aidlc-plan-gate"], .["aidlc-plan-check"])
       | if $action == "add" then
-          . + {"aidlc-plan-gate": {PreToolUse: [{matcher: "write_to_file|replace_file_content|multi_replace_file_content",
+          . + {"aidlc-plan-gate": {PreToolUse: [{matcher: "write_to_file|replace_file_content|multi_replace_file_content|run_command",
                                                   hooks: [{type: "command", command: $gate, timeout: 15}]}]},
                "aidlc-plan-check": {Stop: [{type: "command", command: $check, timeout: 60}]}}
         else . end
@@ -212,7 +218,7 @@ for key in ("aidlc-plan-gate", "aidlc-plan-check"):
     data.pop(key, None)
 if action == "add":
     data["aidlc-plan-gate"] = {"PreToolUse": [{
-        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content|run_command",
         "hooks": [{"type": "command", "command": 'bash "%s/antigravity.sh" pre-tool' % hooks, "timeout": 15}]}]}
     data["aidlc-plan-check"] = {"Stop": [
         {"type": "command", "command": 'bash "%s/antigravity.sh" stop' % hooks, "timeout": 60}]}
